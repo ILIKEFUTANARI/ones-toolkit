@@ -1,0 +1,166 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release, for example v0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve release ref
+        id: release_ref
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "ref=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "ref=${GITHUB_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release_ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run tests
+        run: cargo test --locked
+
+  build:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target_name: linux-amd64
+            artifact_name: ones-linux-amd64
+            binary_path: target/release/ones
+          - os: ubuntu-24.04-arm
+            target_name: linux-arm64
+            artifact_name: ones-linux-arm64
+            binary_path: target/release/ones
+          - os: macos-26
+            target_name: macos-arm64
+            artifact_name: ones-macos-arm64
+            binary_path: target/release/ones
+          - os: windows-latest
+            target_name: windows-amd64
+            artifact_name: ones-windows-amd64.exe
+            binary_path: target/release/ones.exe
+          - os: windows-11-arm
+            target_name: windows-arm64
+            artifact_name: ones-windows-arm64.exe
+            binary_path: target/release/ones.exe
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - name: Resolve release ref
+        id: release_ref
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+            echo "ref=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "ref=${GITHUB_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release_ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build release binary
+        run: cargo build --locked --release
+
+      - name: Prepare Unix release artifacts
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          install -m 0755 "${{ matrix.binary_path }}" "${{ matrix.artifact_name }}"
+          shasum -a 256 "${{ matrix.artifact_name }}" > "${{ matrix.artifact_name }}.sha256"
+
+      - name: Prepare Windows release artifacts
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Copy-Item "${{ matrix.binary_path }}" "${{ matrix.artifact_name }}"
+          $hash = (Get-FileHash -Algorithm SHA256 "${{ matrix.artifact_name }}").Hash.ToLowerInvariant()
+          "$hash  ${{ matrix.artifact_name }}" | Out-File -FilePath "${{ matrix.artifact_name }}.sha256" -Encoding ascii
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ones-${{ matrix.target_name }}-${{ github.run_id }}
+          path: |
+            ${{ matrix.artifact_name }}
+            ${{ matrix.artifact_name }}.sha256
+          if-no-files-found: error
+
+  release-tag:
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ones-*-${{ github.run_id }}
+          path: dist
+          merge-multiple: true
+
+      - name: Resolve release tag
+        id: release_ref
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish tagged release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.release_ref.outputs.tag }}
+          files: |
+            dist/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true

@@ -1,0 +1,87 @@
+# ones
+
+Read-only ONES issue wrapper with:
+
+- HTTP JSON API for humans and scripts
+- MCP over Streamable HTTP
+- MCP over stdio
+
+The project is released under the MIT license.
+
+## Environment
+
+Required for every mode:
+
+- `ONES_BASE_URL`
+  Example: `http://ones.example.com`
+- `ONES_TEAM_UUID`
+
+Required for `stdio` MCP:
+
+- `ONES_EMAIL`
+- `ONES_PASSWORD`
+
+## Run
+
+HTTP JSON API plus HTTP MCP:
+
+```bash
+cargo run -- serve --addr 127.0.0.1:8787 --mcp-path /mcp
+```
+
+stdio MCP:
+
+```bash
+ONES_EMAIL=alex@example.test ONES_PASSWORD=dummy-password cargo run -- stdio
+```
+
+## GitHub Release
+
+Pushing a tag that matches `v*` triggers the GitHub Actions workflow in
+`.github/workflows/release.yml` and publishes release artifacts for:
+
+- Linux amd64
+- Linux arm64
+- macOS arm64
+- Windows amd64
+- Windows arm64
+
+Each release uploads one platform binary plus its `.sha256` file.
+
+You can also run the workflow manually with `workflow_dispatch`, but it expects
+an existing tag such as `v0.1.0`.
+
+## HTTP API
+
+Per-request auth headers:
+
+- `x-ones-email`
+- `x-ones-password`
+
+Routes:
+
+- `GET /api/workbench/views`
+- `GET /api/workbench/views/{view_uuid}`
+- `GET /api/workbench/views/{view_uuid}/groups`
+- `GET /api/workbench/views/{view_uuid}/issues?group_value=...&cursor=...&limit=...`
+- `GET /api/issues/by-display-id/{display_id}`
+- `GET /api/issues/{issue_uuid}`
+- `GET /openapi.json`
+
+## MCP Tools
+
+- `list_workbench_views`
+- `get_workbench_view`
+- `list_workbench_issue_groups`
+- `list_workbench_issues`
+- `get_issue_by_display_id`
+- `get_issue_detail`
+
+## Current scope
+
+v1 is read-only and prioritizes:
+
+- direct issue lookup by display ID like `DEMO-1234`
+- browsing issues through saved workbench views
+
+Keyword search and write operations are intentionally out of scope for this version.
