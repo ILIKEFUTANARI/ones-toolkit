@@ -26,7 +26,15 @@ Required for `stdio` MCP:
 HTTP JSON API plus HTTP MCP:
 
 ```bash
-cargo run -- serve --addr 127.0.0.1:8787 --mcp-path /mcp
+cargo run -- serve
+```
+
+Default endpoint: `http://127.0.0.1:3000/mcp`.
+
+Override the listener with `--addr` or `LISTEN_ADDR`:
+
+```bash
+cargo run -- serve --addr 127.0.0.1:8080
 ```
 
 stdio MCP:
