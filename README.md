@@ -66,6 +66,7 @@ Routes:
 - `GET /api/workbench/views/{view_uuid}/issues?group_value=...&cursor=...&limit=...`
 - `GET /api/issues/by-display-id/{display_id}`
 - `GET /api/issues/{issue_uuid}`
+- `GET /api/issues/{issue_uuid}/activity?cursor=...&limit=...`
 - `GET /openapi.json`
 
 ## MCP Tools
@@ -76,6 +77,7 @@ Routes:
 - `list_workbench_issues`
 - `get_issue_by_display_id`
 - `get_issue_detail`
+- `list_issue_activity`
 
 ## Current scope
 
@@ -83,5 +85,11 @@ v1 is read-only and prioritizes:
 
 - direct issue lookup by display ID like `DEMO-1234`
 - browsing issues through saved workbench views
+
+Issue detail responses are compact and human-readable: they include core fields,
+named non-empty custom fields, and related-resource summaries. ONES form layouts,
+field-definition metadata, and raw activity payloads remain internal. Call
+`list_issue_activity` only when the issue history is needed; it returns paged,
+readable change entries.
 
 Keyword search and write operations are intentionally out of scope for this version.

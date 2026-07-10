@@ -1,9 +1,34 @@
 use crate::error::{AppError, AppResult};
 use crate::models::SortField;
+use serde_json::Value;
+use std::collections::HashSet;
 
 pub const DEFAULT_PAGE_LIMIT: u32 = 20;
 pub const MAX_PAGE_LIMIT: u32 = 100;
 pub const GROUP_PAGE_LIMIT: u32 = 2000;
+
+const CORE_FIELD_UUIDS: &[&str] = &[
+    "uuid",
+    "path",
+    "v$issue_path",
+    "field001",
+    "field003",
+    "field004",
+    "field005",
+    "field006",
+    "field007",
+    "field008",
+    "field009",
+    "field010",
+    "field011",
+    "field012",
+    "field013",
+    "field016",
+    "field054",
+    "field903",
+];
+
+const ISSUE_DETAIL_PROJECTION: &str = "uuid,v$issue_path,v$display_id_path as display_id_path,field001,field003.uuid,field003.name,field004.uuid,field004.name,field005.uuid,field005.name,field005.category,field006.uuid,field006.name,field007.uuid,field007.name,field008.uuid,field008.name,field009,field010,field011.uuid,field011.name,field011.status_category,field012.uuid,field012.name,toDate(field013),field016,field054.uuid,field054.name,field903";
 
 pub fn normalize_limit(limit: Option<u32>) -> u32 {
     limit.unwrap_or(DEFAULT_PAGE_LIMIT).clamp(1, MAX_PAGE_LIMIT)
@@ -52,11 +77,35 @@ pub fn build_issue_list_query(
     ))
 }
 
-pub fn build_issue_detail_query(issue_uuid: &str) -> String {
+pub fn build_issue_detail_query(issue_uuid: &str, definitions: &[Value]) -> String {
+    let mut seen = HashSet::new();
+    let custom_fields = definitions.iter().filter_map(|definition| {
+        let field_uuid = definition.get("uuid")?.as_str()?;
+        (!is_core_field_uuid(field_uuid)
+            && is_onesql_identifier(field_uuid)
+            && seen.insert(field_uuid))
+        .then_some(field_uuid)
+    });
+    let projection = std::iter::once(ISSUE_DETAIL_PROJECTION)
+        .chain(custom_fields)
+        .collect::<Vec<_>>()
+        .join(",");
+
     format!(
-        "select uid(field001,field006.uuid,field006.name,field006.icon,field006.isArchive,field903,field054.uuid,field054.name,field004.uuid,field004.name,field004.email,field004.avatar,field005.uuid,field005.name,field005.category,field007.uuid,field007.name,field007.detail_type,Wy65kRnx,M9LqJ5Fb.uuid,M9LqJ5Fb.name,field016,BfyseLJz.uuid,BfyseLJz.name,BfyseLJz.email,BfyseLJz.avatar,URGc9Vwj.uuid,URGc9Vwj.name,URGc9Vwj.email,URGc9Vwj.avatar,RgvB3RQA.uuid,RgvB3RQA.name,RgvB3RQA.email,RgvB3RQA.avatar,toDate(field013),XVeVseBB.uuid,XVeVseBB.name,K2VETsUz.uuid,K2VETsUz.name,field012.uuid,field012.name,D7GsxkM4,7dxodXcZ,XgVo3CWJ,field007.icon,field007.icon_uuid,field007.built_in,field007.type,field003.uuid,field003.name,field003.email,field003.avatar,field009,field010,SpRRzmXw,field011.uuid,field011.name,field011.status_category,field011.title,field011.sprint_project_info,FaheVJN5,9azZvZbt,7wXYm6mw,QVq53Eax,HeLyXbyL,WLcHw33N,23dub4Jp,ULid74Qv,4EM6xHBD,JTfimgpA,KsHB1zgC,5WYde3go,QAyVWUNB,field008.uuid,field008.name,field008.email,field008.avatar,v$issue_path) from issue where uid(uuid) = uid('{}');",
+        "select uid({projection}) from issue where uid(uuid) = uid('{}');",
         escape(issue_uuid)
     )
+}
+
+pub fn is_core_field_uuid(field_uuid: &str) -> bool {
+    CORE_FIELD_UUIDS.contains(&field_uuid)
+}
+
+fn is_onesql_identifier(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '_')
 }
 
 pub fn parse_sort_fields(
@@ -114,5 +163,19 @@ mod tests {
         let error =
             build_issue_list_query("1 = 1", Some("field006"), None, None, 20, &[]).unwrap_err();
         assert!(error.to_string().contains("group_value"));
+    }
+
+    #[test]
+    fn detail_query_projects_valid_custom_fields() {
+        let definitions = vec![
+            serde_json::json!({ "uuid": "field001" }),
+            serde_json::json!({ "uuid": "CustomA1" }),
+            serde_json::json!({ "uuid": "CustomA1" }),
+            serde_json::json!({ "uuid": "invalid-field" }),
+        ];
+        let query = build_issue_detail_query("issue-1", &definitions);
+        assert!(query.contains("field903,CustomA1)"), "{query}");
+        assert_eq!(query.matches("CustomA1").count(), 1);
+        assert!(!query.contains("invalid-field"));
     }
 }

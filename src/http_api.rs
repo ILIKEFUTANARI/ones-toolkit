@@ -39,6 +39,10 @@ pub fn build_http_app(
             get(get_issue_by_display_id),
         )
         .route("/api/issues/{issue_uuid}", get(get_issue))
+        .route(
+            "/api/issues/{issue_uuid}/activity",
+            get(list_issue_activity),
+        )
         .route("/openapi.json", get(openapi))
         .with_state(state)
         .nest_service(&mcp_path, mcp_service)
@@ -126,6 +130,20 @@ async fn get_issue(
     Ok(Json(json!({ "issue": issue })))
 }
 
+async fn list_issue_activity(
+    State(state): State<HttpState>,
+    Path(issue_uuid): Path<String>,
+    Query(query): Query<ListIssuesQuery>,
+    headers: HeaderMap,
+) -> AppResult<Json<serde_json::Value>> {
+    let auth = auth_from_headers(&headers)?;
+    let activity = state
+        .service
+        .list_issue_activity(&auth, &issue_uuid, query.cursor.as_deref(), query.limit)
+        .await?;
+    Ok(Json(json!({ "activity": activity })))
+}
+
 async fn openapi() -> Json<serde_json::Value> {
     Json(json!({
         "openapi": "3.1.0",
@@ -139,7 +157,8 @@ async fn openapi() -> Json<serde_json::Value> {
             "/api/workbench/views/{view_uuid}/groups": { "get": {} },
             "/api/workbench/views/{view_uuid}/issues": { "get": {} },
             "/api/issues/by-display-id/{display_id}": { "get": {} },
-            "/api/issues/{issue_uuid}": { "get": {} }
+            "/api/issues/{issue_uuid}": { "get": {} },
+            "/api/issues/{issue_uuid}/activity": { "get": {} }
         },
         "components": {
             "securitySchemes": {

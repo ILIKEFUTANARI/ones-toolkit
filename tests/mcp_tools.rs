@@ -35,6 +35,8 @@ async fn mcp_http_exposes_issue_tooling() {
             .iter()
             .any(|tool| tool.name == "get_issue_by_display_id")
     );
+    assert_eq!(tools.len(), 7);
+    assert!(tools.iter().any(|tool| tool.name == "list_issue_activity"));
 
     let result = client
         .call_tool(
@@ -50,4 +52,22 @@ async fn mcp_http_exposes_issue_tooling() {
 
     let structured = result.structured_content.expect("structured content");
     assert_eq!(structured["issue"]["summary"]["display_id"], "DEMO-1234");
+    assert!(structured["issue"].get("detail_form").is_none());
+
+    let activity = client
+        .call_tool(
+            CallToolRequestParams::new("list_issue_activity").with_arguments(
+                serde_json::json!({ "issue_uuid": "issue-demo-001", "limit": 1 })
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            ),
+        )
+        .await
+        .unwrap();
+    let structured = activity.structured_content.expect("structured content");
+    assert_eq!(
+        structured["activity"]["activity"].as_array().unwrap().len(),
+        1
+    );
 }

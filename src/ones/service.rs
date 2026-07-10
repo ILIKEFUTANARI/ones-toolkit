@@ -2,21 +2,22 @@ use crate::{
     config::AppConfig,
     error::{AppError, AppResult},
     models::{
-        AuthContext, IssueDetail, IssueLookupResult, IssueMessage, IssueRelatedSummary,
-        IssueSummary, ListPinField, NamedRef, PageInfo, RelatedCase, RelatedWikiPage,
-        WorkbenchIssueGroup, WorkbenchViewDetail, WorkbenchViewSummary,
+        AuthContext, IssueSummary, PageInfo, WorkbenchIssueGroup, WorkbenchViewDetail,
+        WorkbenchViewSummary,
     },
     ones::{
         client::OnesClient,
         query::{
-            build_group_count_query, build_issue_detail_query, build_issue_list_query,
-            normalize_limit, parse_sort_fields,
+            build_group_count_query, build_issue_list_query, normalize_limit, parse_sort_fields,
         },
         raw::{PageInfoRaw, TreeNode, ViewDetailItem},
+        transform::parse_issue_summary,
     },
 };
 use serde_json::{Value, json};
 use std::{collections::HashMap, sync::Arc};
+
+mod issue;
 
 #[derive(Debug, Clone)]
 pub struct OnesService {
@@ -122,87 +123,6 @@ impl OnesService {
                 .map(parse_issue_summary)
                 .collect(),
             page_info: response.page_info.map(to_page_info).unwrap_or_default(),
-        })
-    }
-
-    pub async fn get_issue_by_display_id(
-        &self,
-        auth: &AuthContext,
-        display_id: &str,
-    ) -> AppResult<IssueDetail> {
-        let lookup = self.resolve_display_id(auth, display_id).await?;
-        self.get_issue_detail_with_lookup(auth, lookup).await
-    }
-
-    pub async fn get_issue_detail(
-        &self,
-        auth: &AuthContext,
-        issue_uuid: &str,
-    ) -> AppResult<IssueDetail> {
-        let lookup = IssueLookupResult {
-            issue_uuid: issue_uuid.to_string(),
-            display_id: None,
-            identifier: None,
-            path: Some(issue_uuid.to_string()),
-        };
-        self.get_issue_detail_with_lookup(auth, lookup).await
-    }
-
-    async fn get_issue_detail_with_lookup(
-        &self,
-        auth: &AuthContext,
-        lookup: IssueLookupResult,
-    ) -> AppResult<IssueDetail> {
-        let detail_query = build_issue_detail_query(&lookup.issue_uuid);
-        let body = json!({ "query": detail_query });
-
-        let (detail, detail_form, fields, messages, related) = tokio::try_join!(
-            self.client.workitems_onesql(auth, &body),
-            self.client.issue_detail_form(auth, &lookup.issue_uuid),
-            self.client.issue_form_fields(auth, &lookup.issue_uuid),
-            self.client.task_messages(auth, &lookup.issue_uuid),
-            self.client.quick_action_task_info(auth, &lookup.issue_uuid),
-        )?;
-
-        let detail_item = detail
-            .data
-            .into_iter()
-            .find_map(|entry| entry.get("item").cloned())
-            .ok_or_else(|| AppError::NotFound(format!("issue {}", lookup.issue_uuid)))?;
-        let mut summary = parse_issue_summary(detail_item.clone());
-        if summary.display_id.is_none() {
-            summary.display_id = lookup.display_id.clone();
-        }
-
-        Ok(IssueDetail {
-            lookup,
-            summary,
-            detail_item,
-            detail_form,
-            form_fields: fields.fields,
-            messages: messages
-                .messages
-                .into_iter()
-                .map(parse_issue_message)
-                .collect(),
-            related: Some(parse_related_summary(related.data.task)),
-        })
-    }
-
-    async fn resolve_display_id(
-        &self,
-        auth: &AuthContext,
-        display_id: &str,
-    ) -> AppResult<IssueLookupResult> {
-        let response = self.client.resolve_display_id(auth, display_id).await?;
-        let issue_uuid = response
-            .task_uuid
-            .ok_or_else(|| AppError::NotFound(format!("display id {display_id}")))?;
-        Ok(IssueLookupResult {
-            issue_uuid,
-            display_id: response.display_id.or(Some(display_id.to_string())),
-            identifier: response.identifier,
-            path: response.path.or(response.display_id_path),
         })
     }
 
@@ -334,107 +254,6 @@ fn parse_group_response(data: &[Value], group_by: &str) -> Vec<WorkbenchIssueGro
         .unwrap_or_default()
 }
 
-fn parse_issue_summary(item: Value) -> IssueSummary {
-    let assignees = array_field(&item, "field008")
-        .into_iter()
-        .map(parse_named_ref)
-        .collect();
-    let raw = item.clone();
-    IssueSummary {
-        uuid: string_field(&item, "uuid").unwrap_or_default(),
-        path: string_field(&item, "path"),
-        display_id: string_field(&item, "display_id_path")
-            .or_else(|| string_field(&item, "field903")),
-        title: string_field(&item, "field001"),
-        issue_type: object_field(&item, "field007").map(parse_named_ref),
-        status: object_field(&item, "field005").map(parse_named_ref),
-        project: object_field(&item, "field006").map(parse_named_ref),
-        assignees,
-        due_date: string_field(&item, "field013"),
-        has_manhour_tab: item
-            .get("has_manhour_tab")
-            .and_then(Value::as_i64)
-            .map(|value| value != 0),
-        downstream_task_count: item.get("downstream_task_count").and_then(Value::as_u64),
-        downstream_task_done_count: item
-            .get("downstream_task_done_count")
-            .and_then(Value::as_u64),
-        list_pin_fields: array_field(&item, "list_pin_field")
-            .into_iter()
-            .map(parse_list_pin_field)
-            .collect(),
-        raw,
-    }
-}
-
-fn parse_named_ref(value: Value) -> NamedRef {
-    NamedRef {
-        uuid: string_field(&value, "uuid"),
-        name: string_field(&value, "name"),
-        icon: value.get("icon").and_then(Value::as_i64),
-        icon_uuid: string_field(&value, "icon_uuid"),
-        detail_type: value.get("detail_type").and_then(Value::as_i64),
-        category: string_field(&value, "category")
-            .or_else(|| string_field(&value, "status_category")),
-    }
-}
-
-fn parse_list_pin_field(value: Value) -> ListPinField {
-    ListPinField {
-        field_uuid: string_field(&value, "field_uuid").unwrap_or_default(),
-        name: string_field(&value, "name").unwrap_or_default(),
-        value: string_field(&value, "value").unwrap_or_default(),
-        bg_color: string_field(&value, "bg_color"),
-        color: string_field(&value, "color"),
-    }
-}
-
-fn parse_issue_message(value: Value) -> IssueMessage {
-    IssueMessage {
-        uuid: string_field(&value, "uuid"),
-        message_type: string_field(&value, "type"),
-        subject_name: string_field(&value, "subject_name"),
-        action: string_field(&value, "action"),
-        object_type: string_field(&value, "object_type"),
-        object_id: string_field(&value, "object_id"),
-        object_name: string_field(&value, "object_name"),
-        send_time: value.get("send_time").and_then(Value::as_i64),
-        raw: value,
-    }
-}
-
-fn parse_related_summary(value: Value) -> IssueRelatedSummary {
-    let related_wiki_pages = array_field(&value, "relatedWikiPages")
-        .into_iter()
-        .map(|page| RelatedWikiPage {
-            uuid: string_field(&page, "uuid"),
-            title: string_field(&page, "title"),
-            reference_type: string_field(&page, "referenceType")
-                .or_else(|| string_field(&page, "ref_type")),
-            sub_reference_type: string_field(&page, "subReferenceType")
-                .or_else(|| string_field(&page, "sub_ref_type")),
-            error_message: string_field(&page, "errorMessage"),
-        })
-        .collect();
-    let related_cases = array_field(&value, "allRelatedCases")
-        .into_iter()
-        .map(|case| RelatedCase {
-            uuid: string_field(&case, "uuid"),
-            id: string_field(&case, "id"),
-            name: string_field(&case, "name"),
-            path: string_field(&case, "path"),
-        })
-        .collect();
-    IssueRelatedSummary {
-        can_edit: value.get("canEdit").and_then(Value::as_bool),
-        sprint: object_field(&value, "sprint").map(parse_named_ref),
-        related_wiki_pages_count: value.get("relatedWikiPagesCount").and_then(Value::as_u64),
-        related_wiki_pages,
-        related_cases,
-        raw: value,
-    }
-}
-
 fn to_page_info(raw: PageInfoRaw) -> PageInfo {
     PageInfo {
         has_next_page: raw.has_next_page,
@@ -444,48 +263,5 @@ fn to_page_info(raw: PageInfoRaw) -> PageInfo {
         total_count: raw.total_count,
         start_pos: raw.start_pos,
         end_pos: raw.end_pos,
-    }
-}
-
-fn string_field(value: &Value, key: &str) -> Option<String> {
-    value
-        .get(key)
-        .and_then(Value::as_str)
-        .map(ToString::to_string)
-}
-
-fn object_field(value: &Value, key: &str) -> Option<Value> {
-    value.get(key).cloned().filter(|item| item.is_object())
-}
-
-fn array_field(value: &Value, key: &str) -> Vec<Value> {
-    value
-        .get(key)
-        .and_then(Value::as_array)
-        .cloned()
-        .unwrap_or_default()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_issue_lookup_and_summary() {
-        let item = json!({
-            "uuid": "issue-demo-001",
-            "display_id_path": "DEMO-1234",
-            "field001": "Sample issue for integration testing",
-            "field005": { "name": "Done", "category": "done", "uuid": "status-demo-done" },
-            "field006": { "uuid": "proj-demo-001", "name": "Demo Project" },
-            "field007": { "uuid": "type-demo-bug", "name": "Bug", "icon": 9, "detail_type": 0 },
-            "field008": [{ "uuid": "user-demo-001", "name": "Alex Example" }]
-        });
-        let summary = parse_issue_summary(item);
-        assert_eq!(summary.display_id.as_deref(), Some("DEMO-1234"));
-        assert_eq!(
-            summary.project.and_then(|p| p.name).as_deref(),
-            Some("Demo Project")
-        );
     }
 }

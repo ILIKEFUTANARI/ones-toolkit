@@ -129,10 +129,6 @@ fn build_mock_ones_router(state: MockState) -> Router {
             post(identifier),
         )
         .route(
-            "/project/api/ones-project/team/team-demo-001/issue/issue-demo-001/detail_form",
-            get(detail_form),
-        )
-        .route(
             "/project/api/ones-project/team/team-demo-001/issue_form/fields",
             post(form_fields),
         )
@@ -174,6 +170,9 @@ async fn workitems_onesql(State(_): State<MockState>, request: Request<Body>) ->
     let body = if query.contains("count() as total_count") {
         include_str!("../fixtures/groups.json")
     } else if query.contains("where uid(uuid) = uid('issue-demo-001')") {
+        assert!(query.contains("CustomA1"), "{query}");
+        assert!(query.contains("CustomB2"), "{query}");
+        assert!(query.contains("CustomRich3"), "{query}");
         include_str!("../fixtures/issue_detail.json")
     } else {
         include_str!("../fixtures/issue_list.json")
@@ -200,10 +199,6 @@ async fn view_detail() -> impl IntoResponse {
 
 async fn identifier() -> impl IntoResponse {
     fixture(include_str!("../fixtures/identifier.json"))
-}
-
-async fn detail_form() -> impl IntoResponse {
-    fixture(include_str!("../fixtures/detail_form.json"))
 }
 
 async fn form_fields() -> impl IntoResponse {

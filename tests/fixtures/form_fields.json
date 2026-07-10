@@ -1,1 +1,1 @@
-{"fields":[{"uuid":"field903","name":"ID"},{"uuid":"field001","name":"Title"},{"uuid":"field005","name":"Status"}]}
+{"fields":[{"uuid":"field903","name":"ID"},{"uuid":"field001","name":"Title"},{"uuid":"field005","name":"Status"},{"uuid":"CustomA1","name":"Estimate","type":{"value_type":"option"}},{"uuid":"CustomB2","name":"Estimate","type":{"value_type":"datetime"}},{"uuid":"CustomRich3","name":"Notes","type":{"value_type":"richtext"}},{"uuid":"CustomEmpty4","name":"Empty","type":{"value_type":"text"}}]}

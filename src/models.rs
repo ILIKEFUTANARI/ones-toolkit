@@ -1,6 +1,5 @@
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AuthContext {
@@ -61,19 +60,7 @@ pub struct PageInfo {
 pub struct NamedRef {
     pub uuid: Option<String>,
     pub name: Option<String>,
-    pub icon: Option<i64>,
-    pub icon_uuid: Option<String>,
-    pub detail_type: Option<i64>,
     pub category: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ListPinField {
-    pub field_uuid: String,
-    pub name: String,
-    pub value: String,
-    pub bg_color: Option<String>,
-    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -98,21 +85,51 @@ pub struct IssueSummary {
     pub has_manhour_tab: Option<bool>,
     pub downstream_task_count: Option<u64>,
     pub downstream_task_done_count: Option<u64>,
-    pub list_pin_fields: Vec<ListPinField>,
-    pub raw: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct IssueMessage {
-    pub uuid: Option<String>,
-    pub message_type: Option<String>,
-    pub subject_name: Option<String>,
-    pub action: Option<String>,
-    pub object_type: Option<String>,
-    pub object_id: Option<String>,
-    pub object_name: Option<String>,
-    pub send_time: Option<i64>,
-    pub raw: Value,
+pub struct IssueCoreFields {
+    pub creator: Option<NamedRef>,
+    pub assignee: Option<NamedRef>,
+    pub watchers: Vec<NamedRef>,
+    pub priority: Option<NamedRef>,
+    pub sprint: Option<NamedRef>,
+    pub modules: Vec<NamedRef>,
+    pub due_date: Option<String>,
+    pub created_at: Option<String>,
+    pub updated_at: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DisplayField {
+    pub name: String,
+    pub value: String,
+    pub field_uuid: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct IssueActivityEntry {
+    pub entry_type: Option<String>,
+    pub actor: Option<String>,
+    pub time: Option<String>,
+    pub summary: Option<String>,
+    pub text: Option<String>,
+    pub field_name: Option<String>,
+    pub old_value: Option<String>,
+    pub new_value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ActivityPageInfo {
+    pub has_next_page: bool,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct IssueActivityPage {
+    pub activity: Vec<IssueActivityEntry>,
+    pub page_info: ActivityPageInfo,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -139,16 +156,13 @@ pub struct IssueRelatedSummary {
     pub related_wiki_pages_count: Option<u64>,
     pub related_wiki_pages: Vec<RelatedWikiPage>,
     pub related_cases: Vec<RelatedCase>,
-    pub raw: Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct IssueDetail {
     pub lookup: IssueLookupResult,
     pub summary: IssueSummary,
-    pub detail_item: Value,
-    pub detail_form: Value,
-    pub form_fields: Vec<Value>,
-    pub messages: Vec<IssueMessage>,
-    pub related: Option<IssueRelatedSummary>,
+    pub core_fields: IssueCoreFields,
+    pub custom_fields: Vec<DisplayField>,
+    pub related: IssueRelatedSummary,
 }

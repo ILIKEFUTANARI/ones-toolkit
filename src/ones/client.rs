@@ -91,20 +91,6 @@ impl OnesClient {
         .await
     }
 
-    pub async fn issue_detail_form(
-        &self,
-        auth: &AuthContext,
-        issue_uuid: &str,
-    ) -> AppResult<Value> {
-        self.request_value(
-            Method::GET,
-            auth,
-            self.ones_project_team_url(&format!("issue/{issue_uuid}/detail_form")),
-            None::<&()>,
-        )
-        .await
-    }
-
     pub async fn issue_form_fields(
         &self,
         auth: &AuthContext,

@@ -2,8 +2,8 @@ use crate::{
     error::{AppError, AppResult},
     http_api::auth_from_headers,
     models::{
-        AuthContext, IssueDetail, IssueSummary, PageInfo, WorkbenchIssueGroup, WorkbenchViewDetail,
-        WorkbenchViewSummary,
+        AuthContext, IssueActivityPage, IssueDetail, IssueSummary, PageInfo, WorkbenchIssueGroup,
+        WorkbenchViewDetail, WorkbenchViewSummary,
     },
     ones::service::OnesService,
 };
@@ -157,6 +157,28 @@ impl OnesMcpServer {
         let issue = map_error(self.service.get_issue_detail(&auth, &issue_uuid).await)?;
         Ok(Json(IssueResponse { issue }))
     }
+
+    #[rmcp::tool(
+        description = "List compact, human-readable activity for one ONES issue; use the returned cursor for the next page"
+    )]
+    async fn list_issue_activity(
+        &self,
+        Parameters(request): Parameters<ListIssueActivityRequest>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<IssueActivityResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let activity = map_error(
+            self.service
+                .list_issue_activity(
+                    &auth,
+                    &request.issue_uuid,
+                    request.cursor.as_deref(),
+                    request.limit,
+                )
+                .await,
+        )?;
+        Ok(Json(IssueActivityResponse { activity }))
+    }
 }
 
 #[tool_handler(router = self.tool_router)]
@@ -196,6 +218,13 @@ struct IssueUuidRequest {
     issue_uuid: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+struct ListIssueActivityRequest {
+    issue_uuid: String,
+    cursor: Option<String>,
+    limit: Option<u32>,
+}
+
 #[derive(Debug, Serialize, JsonSchema)]
 struct ViewsResponse {
     views: Vec<WorkbenchViewSummary>,
@@ -220,6 +249,11 @@ struct WorkbenchIssuesResponse {
 #[derive(Debug, Serialize, JsonSchema)]
 struct IssueResponse {
     issue: IssueDetail,
+}
+
+#[derive(Debug, Serialize, JsonSchema)]
+struct IssueActivityResponse {
+    activity: IssueActivityPage,
 }
 
 fn map_error<T>(result: AppResult<T>) -> Result<T, rmcp::ErrorData> {
