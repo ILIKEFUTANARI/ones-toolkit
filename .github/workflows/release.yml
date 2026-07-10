@@ -49,7 +49,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run tests
-        run: cargo test --locked
+        run: cargo test
 
   build:
     needs: verify
@@ -72,10 +72,6 @@ jobs:
           - os: windows-latest
             target_name: windows-amd64
             artifact_name: ones-windows-amd64.exe
-            binary_path: target/release/ones.exe
-          - os: windows-11-arm
-            target_name: windows-arm64
-            artifact_name: ones-windows-arm64.exe
             binary_path: target/release/ones.exe
     runs-on: ${{ matrix.os }}
     permissions:
@@ -106,7 +102,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build release binary
-        run: cargo build --locked --release
+        run: cargo build --release
 
       - name: Prepare Unix release artifacts
         if: runner.os != 'Windows'

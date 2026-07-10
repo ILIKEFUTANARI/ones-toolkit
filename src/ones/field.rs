@@ -1,26 +1,5 @@
 use crate::ones::raw::IssueFieldDefinition;
 
-const CORE_FIELD_UUIDS: &[&str] = &[
-    "uuid",
-    "path",
-    "v$issue_path",
-    "field001",
-    "field003",
-    "field004",
-    "field005",
-    "field006",
-    "field007",
-    "field008",
-    "field009",
-    "field010",
-    "field011",
-    "field012",
-    "field013",
-    "field016",
-    "field054",
-    "field903",
-];
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayFieldKind {
     Scalar,
@@ -28,10 +7,7 @@ pub enum DisplayFieldKind {
 }
 
 pub fn display_field_kind(definition: &IssueFieldDefinition) -> Option<DisplayFieldKind> {
-    if definition.built_in
-        || is_core_field_uuid(&definition.uuid)
-        || !is_onesql_identifier(&definition.uuid)
-    {
+    if definition.built_in || !is_onesql_identifier(&definition.uuid) {
         return None;
     }
 
@@ -51,11 +27,20 @@ pub fn display_field_kind(definition: &IssueFieldDefinition) -> Option<DisplayFi
     }
 }
 
-fn is_core_field_uuid(field_uuid: &str) -> bool {
-    CORE_FIELD_UUIDS.contains(&field_uuid)
+pub fn definition_by_type<'a>(
+    definitions: &'a [IssueFieldDefinition],
+    type_uuid: &str,
+) -> Option<&'a IssueFieldDefinition> {
+    definitions.iter().find(|definition| {
+        definition
+            .field_type
+            .as_ref()
+            .and_then(|field_type| field_type.uuid.as_deref())
+            == Some(type_uuid)
+    })
 }
 
-fn is_onesql_identifier(value: &str) -> bool {
+pub fn is_onesql_identifier(value: &str) -> bool {
     !value.is_empty()
         && value
             .chars()

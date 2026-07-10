@@ -11,158 +11,162 @@ pub struct AuthContext {
 pub struct WorkbenchViewSummary {
     pub uuid: String,
     pub name: String,
-    pub shared: bool,
-    pub built_in: bool,
-    pub is_show: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct SortField {
-    pub field: String,
-    pub order: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct WorkbenchViewDetail {
     pub uuid: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub group_by: Option<String>,
-    pub layout: Option<String>,
-    pub display_type: Option<String>,
-    pub shared: bool,
-    pub built_in: bool,
     pub include_subtasks: bool,
-    pub is_fold_all_groups: bool,
-    pub sort: Vec<SortField>,
     pub hierarchy_enabled: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SortField {
+    pub field: String,
+    pub order: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct WorkbenchIssueGroup {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
     pub label: String,
     pub total_count: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub hierarchy_count: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
 pub struct PageInfo {
     pub has_next_page: bool,
-    pub start_cursor: Option<String>,
-    pub end_cursor: Option<String>,
-    pub page_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub total_count: Option<u64>,
-    pub start_pos: Option<u64>,
-    pub end_pos: Option<u64>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct IssueLookupResult {
+    pub issue_uuid: String,
+    pub display_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct NamedRef {
-    pub uuid: Option<String>,
-    pub name: Option<String>,
+pub struct StatusSummary {
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct IssueLookupResult {
-    pub issue_uuid: String,
-    pub display_id: Option<String>,
-    pub identifier: Option<String>,
-    pub path: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct IssueSummary {
+pub struct IssueListItem {
     pub uuid: String,
-    pub path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub display_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    pub issue_type: Option<NamedRef>,
-    pub status: Option<NamedRef>,
-    pub project: Option<NamedRef>,
-    pub assignees: Vec<NamedRef>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<StatusSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub due_date: Option<String>,
-    pub has_manhour_tab: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub downstream_task_count: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub downstream_task_done_count: Option<u64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct IssueCoreFields {
-    pub creator: Option<NamedRef>,
-    pub assignee: Option<NamedRef>,
-    pub watchers: Vec<NamedRef>,
-    pub priority: Option<NamedRef>,
-    pub sprint: Option<NamedRef>,
-    pub modules: Vec<NamedRef>,
-    pub due_date: Option<String>,
-    pub created_at: Option<String>,
-    pub updated_at: Option<String>,
-    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DisplayField {
     pub name: String,
     pub value: String,
-    pub field_uuid: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct IssueActivityEntry {
-    pub entry_type: Option<String>,
-    pub actor: Option<String>,
-    pub time: Option<String>,
-    pub summary: Option<String>,
-    pub text: Option<String>,
-    pub field_name: Option<String>,
-    pub old_value: Option<String>,
-    pub new_value: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ActivityPageInfo {
-    pub has_next_page: bool,
-    pub next_cursor: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct IssueActivityPage {
-    pub activity: Vec<IssueActivityEntry>,
-    pub page_info: ActivityPageInfo,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RelatedWikiPage {
-    pub uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
-    pub reference_type: Option<String>,
-    pub sub_reference_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RelatedCase {
-    pub uuid: Option<String>,
-    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    pub path: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct IssueRelatedSummary {
-    pub can_edit: Option<bool>,
-    pub sprint: Option<NamedRef>,
-    pub related_wiki_pages_count: Option<u64>,
-    pub related_wiki_pages: Vec<RelatedWikiPage>,
-    pub related_cases: Vec<RelatedCase>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct IssueDetail {
-    pub lookup: IssueLookupResult,
-    pub summary: IssueSummary,
-    pub core_fields: IssueCoreFields,
-    pub custom_fields: Vec<DisplayField>,
-    pub related: IssueRelatedSummary,
+    pub uuid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<StatusSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub creator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub watchers: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sprint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modules: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub due_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub custom_fields: Option<Vec<DisplayField>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub related_wiki_pages: Option<Vec<RelatedWikiPage>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub related_cases: Option<Vec<RelatedCase>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct IssueActivityEntry {
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub entry_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actor: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub time: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub field_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub old_value: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_value: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct IssueActivityPage {
+    pub activity: Vec<IssueActivityEntry>,
+    pub page_info: PageInfo,
 }

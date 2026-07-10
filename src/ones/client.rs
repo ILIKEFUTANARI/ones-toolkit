@@ -4,8 +4,7 @@ use crate::{
     models::AuthContext,
     ones::raw::{
         IdentifierResponse, IssueFormFieldsResponse, LoginResponse, MessagesResponse,
-        OnesqlResponse, QuickActionResponse, ViewConfigResponse, ViewDetailResponse,
-        ViewListResponse,
+        OnesqlResponse, QuickActionResponse, ViewDetailResponse, ViewListResponse,
     },
 };
 use reqwest::{Client, Method};
@@ -45,19 +44,6 @@ impl OnesClient {
             Method::GET,
             auth,
             self.project_team_url("user_filter_views/list"),
-            None::<&()>,
-        )
-        .await
-    }
-
-    pub async fn user_filter_views_config(
-        &self,
-        auth: &AuthContext,
-    ) -> AppResult<ViewConfigResponse> {
-        self.request_json(
-            Method::GET,
-            auth,
-            self.project_team_url("user_filter_views/config"),
             None::<&()>,
         )
         .await
@@ -138,7 +124,7 @@ impl OnesClient {
         auth: &AuthContext,
         issue_uuid: &str,
     ) -> AppResult<QuickActionResponse> {
-        let query = "query Task { task(key: $key) { key path uuid displayId name project { uuid isSample isArchive } issueType { uuid detailType } alternativeIssueType { uuid detailType name } canEdit(attachPermission:{ permissions:[\"update_tasks\"], }) sprint { name uuid } relatedWikiPages { uuid title referenceType ref_type: referenceType subReferenceType sub_ref_type: subReferenceType errorMessage } relatedWikiPagesCount relatedCases { uuid } allRelatedCases(stubRelatedCases: {}){ uuid name id path testcaseLibrary { uuid name } } } }";
+        let query = "query Task { task(key: $key) { relatedWikiPages { title errorMessage } allRelatedCases(stubRelatedCases: {}) { name } } }";
         self.request_json(
             Method::POST,
             auth,

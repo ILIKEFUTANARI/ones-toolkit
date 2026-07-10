@@ -1,10 +1,11 @@
 use crate::{
+    api::{
+        ActivityResponse, GroupsResponse, IssueResponse, ViewResponse, ViewsResponse,
+        WorkbenchIssuePage,
+    },
     error::{AppError, AppResult},
     http_api::auth_from_headers,
-    models::{
-        AuthContext, IssueActivityPage, IssueDetail, IssueSummary, PageInfo, WorkbenchIssueGroup,
-        WorkbenchViewDetail, WorkbenchViewSummary,
-    },
+    models::AuthContext,
     ones::service::OnesService,
 };
 use http::request::Parts;
@@ -16,7 +17,7 @@ use rmcp::{
     service::RequestContext,
     tool_handler, tool_router,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -111,7 +112,7 @@ impl OnesMcpServer {
         &self,
         Parameters(request): Parameters<ListWorkbenchIssuesRequest>,
         context: RequestContext<rmcp::RoleServer>,
-    ) -> Result<Json<WorkbenchIssuesResponse>, rmcp::ErrorData> {
+    ) -> Result<Json<WorkbenchIssuePage>, rmcp::ErrorData> {
         let auth = map_error(self.auth_from_context(&context))?;
         let page = map_error(
             self.service
@@ -121,10 +122,11 @@ impl OnesMcpServer {
                     request.group_value.as_deref(),
                     request.cursor.as_deref(),
                     request.limit,
+                    request.redact.unwrap_or(true),
                 )
                 .await,
         )?;
-        Ok(Json(WorkbenchIssuesResponse {
+        Ok(Json(WorkbenchIssuePage {
             issues: page.issues,
             page_info: page.page_info,
         }))
@@ -135,13 +137,13 @@ impl OnesMcpServer {
     )]
     async fn get_issue_by_display_id(
         &self,
-        Parameters(DisplayIdRequest { display_id }): Parameters<DisplayIdRequest>,
+        Parameters(DisplayIdRequest { display_id, redact }): Parameters<DisplayIdRequest>,
         context: RequestContext<rmcp::RoleServer>,
     ) -> Result<Json<IssueResponse>, rmcp::ErrorData> {
         let auth = map_error(self.auth_from_context(&context))?;
         let issue = map_error(
             self.service
-                .get_issue_by_display_id(&auth, &display_id)
+                .get_issue_by_display_id(&auth, &display_id, redact.unwrap_or(true))
                 .await,
         )?;
         Ok(Json(IssueResponse { issue }))
@@ -150,11 +152,15 @@ impl OnesMcpServer {
     #[rmcp::tool(description = "Return the aggregated issue detail for one ONES issue UUID")]
     async fn get_issue_detail(
         &self,
-        Parameters(IssueUuidRequest { issue_uuid }): Parameters<IssueUuidRequest>,
+        Parameters(IssueUuidRequest { issue_uuid, redact }): Parameters<IssueUuidRequest>,
         context: RequestContext<rmcp::RoleServer>,
     ) -> Result<Json<IssueResponse>, rmcp::ErrorData> {
         let auth = map_error(self.auth_from_context(&context))?;
-        let issue = map_error(self.service.get_issue_detail(&auth, &issue_uuid).await)?;
+        let issue = map_error(
+            self.service
+                .get_issue_detail(&auth, &issue_uuid, redact.unwrap_or(true))
+                .await,
+        )?;
         Ok(Json(IssueResponse { issue }))
     }
 
@@ -165,7 +171,7 @@ impl OnesMcpServer {
         &self,
         Parameters(request): Parameters<ListIssueActivityRequest>,
         context: RequestContext<rmcp::RoleServer>,
-    ) -> Result<Json<IssueActivityResponse>, rmcp::ErrorData> {
+    ) -> Result<Json<ActivityResponse>, rmcp::ErrorData> {
         let auth = map_error(self.auth_from_context(&context))?;
         let activity = map_error(
             self.service
@@ -174,10 +180,11 @@ impl OnesMcpServer {
                     &request.issue_uuid,
                     request.cursor.as_deref(),
                     request.limit,
+                    request.redact.unwrap_or(true),
                 )
                 .await,
         )?;
-        Ok(Json(IssueActivityResponse { activity }))
+        Ok(Json(activity))
     }
 }
 
@@ -206,16 +213,19 @@ struct ListWorkbenchIssuesRequest {
     group_value: Option<String>,
     cursor: Option<String>,
     limit: Option<u32>,
+    redact: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct DisplayIdRequest {
     display_id: String,
+    redact: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 struct IssueUuidRequest {
     issue_uuid: String,
+    redact: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -223,37 +233,7 @@ struct ListIssueActivityRequest {
     issue_uuid: String,
     cursor: Option<String>,
     limit: Option<u32>,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-struct ViewsResponse {
-    views: Vec<WorkbenchViewSummary>,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-struct ViewResponse {
-    view: WorkbenchViewDetail,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-struct GroupsResponse {
-    groups: Vec<WorkbenchIssueGroup>,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-struct WorkbenchIssuesResponse {
-    issues: Vec<IssueSummary>,
-    page_info: PageInfo,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-struct IssueResponse {
-    issue: IssueDetail,
-}
-
-#[derive(Debug, Serialize, JsonSchema)]
-struct IssueActivityResponse {
-    activity: IssueActivityPage,
+    redact: Option<bool>,
 }
 
 fn map_error<T>(result: AppResult<T>) -> Result<T, rmcp::ErrorData> {

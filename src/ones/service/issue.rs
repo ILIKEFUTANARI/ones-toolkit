@@ -1,13 +1,10 @@
 use super::OnesService;
 use crate::{
     error::{AppError, AppResult},
-    models::{ActivityPageInfo, AuthContext, IssueActivityPage, IssueDetail, IssueLookupResult},
+    models::{AuthContext, IssueActivityPage, IssueDetail, IssueLookupResult, PageInfo},
     ones::{
         query::{build_issue_detail_query, normalize_limit},
-        transform::{
-            activity_cursor, parse_core_fields, parse_custom_fields, parse_issue_activity,
-            parse_issue_summary, parse_related_summary,
-        },
+        transform::{activity_cursor, parse_issue_activity, parse_issue_detail},
     },
 };
 use serde_json::json;
@@ -17,29 +14,32 @@ impl OnesService {
         &self,
         auth: &AuthContext,
         display_id: &str,
+        redact: bool,
     ) -> AppResult<IssueDetail> {
         let lookup = self.resolve_display_id(auth, display_id).await?;
-        self.get_issue_detail_with_lookup(auth, lookup).await
+        self.get_issue_detail_with_lookup(auth, lookup, redact)
+            .await
     }
 
     pub async fn get_issue_detail(
         &self,
         auth: &AuthContext,
         issue_uuid: &str,
+        redact: bool,
     ) -> AppResult<IssueDetail> {
         let lookup = IssueLookupResult {
             issue_uuid: issue_uuid.to_string(),
             display_id: None,
-            identifier: None,
-            path: Some(issue_uuid.to_string()),
         };
-        self.get_issue_detail_with_lookup(auth, lookup).await
+        self.get_issue_detail_with_lookup(auth, lookup, redact)
+            .await
     }
 
     async fn get_issue_detail_with_lookup(
         &self,
         auth: &AuthContext,
         lookup: IssueLookupResult,
+        redact: bool,
     ) -> AppResult<IssueDetail> {
         let detail_request = async {
             let fields = self
@@ -61,18 +61,14 @@ impl OnesService {
             .into_iter()
             .find_map(|entry| entry.get("item").cloned())
             .ok_or_else(|| AppError::NotFound(format!("issue {}", lookup.issue_uuid)))?;
-        let mut summary = parse_issue_summary(detail_item.clone());
-        if summary.display_id.is_none() {
-            summary.display_id = lookup.display_id.clone();
-        }
-
-        Ok(IssueDetail {
+        Ok(parse_issue_detail(
+            &detail_item,
             lookup,
-            summary,
-            core_fields: parse_core_fields(&detail_item),
-            custom_fields: parse_custom_fields(&detail_item, &fields.fields),
-            related: parse_related_summary(related.data.task),
-        })
+            &fields.fields,
+            related.data.task,
+            &self.identities,
+            redact,
+        ))
     }
 
     pub async fn list_issue_activity(
@@ -81,6 +77,7 @@ impl OnesService {
         issue_uuid: &str,
         cursor: Option<&str>,
         limit: Option<u32>,
+        redact: bool,
     ) -> AppResult<IssueActivityPage> {
         let messages = self.client.task_messages(auth, issue_uuid).await?.messages;
         let start = match cursor {
@@ -93,19 +90,16 @@ impl OnesService {
         };
         let limit = normalize_limit(limit) as usize;
         let end = (start + limit).min(messages.len());
-        let activity = messages[start..end]
-            .iter()
-            .cloned()
-            .map(parse_issue_activity)
-            .collect();
+        let activity = parse_issue_activity(&messages[start..end], &self.identities, redact);
 
         Ok(IssueActivityPage {
             activity,
-            page_info: ActivityPageInfo {
+            page_info: PageInfo {
                 has_next_page: end < messages.len(),
                 next_cursor: (end < messages.len())
                     .then(|| activity_cursor(&messages[end - 1]))
                     .flatten(),
+                total_count: None,
             },
         })
     }
@@ -122,8 +116,6 @@ impl OnesService {
         Ok(IssueLookupResult {
             issue_uuid,
             display_id: response.display_id.or(Some(display_id.to_string())),
-            identifier: response.identifier,
-            path: response.path.or(response.display_id_path),
         })
     }
 }

@@ -1,7 +1,7 @@
 use crate::error::{AppError, AppResult};
 use crate::models::SortField;
 use crate::ones::{
-    field::{DisplayFieldKind, display_field_kind},
+    field::{DisplayFieldKind, display_field_kind, is_onesql_identifier},
     raw::IssueFieldDefinition,
 };
 use std::collections::HashSet;
@@ -10,20 +10,36 @@ pub const DEFAULT_PAGE_LIMIT: u32 = 20;
 pub const MAX_PAGE_LIMIT: u32 = 100;
 pub const GROUP_PAGE_LIMIT: u32 = 2000;
 
-const ISSUE_DETAIL_PROJECTION: &str = "uuid,v$issue_path,field001,field003.uuid,field003.name,field004.uuid,field004.name,field005.uuid,field005.name,field005.category,field006.uuid,field006.name,field007.uuid,field007.name,field008.uuid,field008.name,field009,field010,field011.uuid,field011.name,field011.status_category,field012.uuid,field012.name,toDate(field013),field016,field054.uuid,field054.name,field903";
+const CORE_FIELD_TYPES: &[&str] = &[
+    "name",
+    "display_id",
+    "issue_type",
+    "status",
+    "project",
+    "creator",
+    "assign",
+    "watcher",
+    "priority",
+    "sprint",
+    "multi_project_module",
+    "date",
+    "create_time",
+    "update_time",
+    "rich_desc",
+];
 
-pub fn normalize_limit(limit: Option<u32>) -> u32 {
+pub(crate) fn normalize_limit(limit: Option<u32>) -> u32 {
     limit.unwrap_or(DEFAULT_PAGE_LIMIT).clamp(1, MAX_PAGE_LIMIT)
 }
 
-pub fn build_group_count_query(onesql: &str, group_by: &str, sort: &[SortField]) -> String {
+pub(crate) fn build_group_count_query(onesql: &str, group_by: &str, sort: &[SortField]) -> String {
     format!(
         "select count() as total_count, uid({group_by}.uuid as value, {group_by}.name as label) from issue where {onesql} group by {group_by} order by {} limit {GROUP_PAGE_LIMIT}",
         build_order_clause(sort)
     )
 }
 
-pub fn build_issue_list_query(
+pub(crate) fn build_issue_list_query(
     onesql: &str,
     group_by: Option<&str>,
     group_value: Option<&str>,
@@ -53,29 +69,45 @@ pub fn build_issue_list_query(
     };
 
     Ok(format!(
-        "select uid(uuid,uuid as path,field001,field007.uuid,field007.name,field007.icon,field007.icon_uuid,field007.manhour_aggregate_mode,field013,field005.name,field005.category,field006.uuid,field017,field018,field042,field020,field045),v$display_id_path as display_id_path,v$path as path,v$list_pin_field as list_pin_field,v$has_view_manhour_tab as has_manhour_tab,v$sub_workitem_count as downstream_task_count,v$sub_workitem_done_count as downstream_task_done_count from issue where ({group_clause}) AND (v$cursor > '{}') order by {} limit {limit}, {limit}",
+        "select uid(uuid,field001,field004.uuid,field004.name,field007.uuid,field007.name,field013,field005.name,field005.category,field006.uuid,field006.name),v$display_id_path as display_id_path,v$sub_workitem_count as downstream_task_count,v$sub_workitem_done_count as downstream_task_done_count from issue where ({group_clause}) AND (v$cursor > '{}') order by {} limit {limit}, {limit}",
         escape(cursor.unwrap_or("")),
         build_order_clause(sort),
     ))
 }
 
-pub fn build_issue_detail_query(issue_uuid: &str, definitions: &[IssueFieldDefinition]) -> String {
+pub(crate) fn build_issue_detail_query(
+    issue_uuid: &str,
+    definitions: &[IssueFieldDefinition],
+) -> String {
     let mut seen = HashSet::new();
-    let custom_fields = definitions
+    let fields = definitions
         .iter()
         .filter(|definition| seen.insert(definition.uuid.as_str()))
         .filter_map(|definition| {
-            Some(match display_field_kind(definition)? {
+            let type_uuid = definition
+                .field_type
+                .as_ref()
+                .and_then(|field_type| field_type.uuid.as_deref());
+            if !CORE_FIELD_TYPES.contains(&type_uuid.unwrap_or_default())
+                && display_field_kind(definition).is_none()
+            {
+                return None;
+            }
+            Some(match projection_kind(definition, type_uuid)? {
                 DisplayFieldKind::Scalar => definition.uuid.clone(),
                 DisplayFieldKind::Reference => {
-                    format!("{0}.uuid,{0}.name", definition.uuid)
+                    if type_uuid == Some("status") {
+                        format!("{0}.uuid,{0}.name,{0}.category", definition.uuid)
+                    } else {
+                        format!("{0}.uuid,{0}.name", definition.uuid)
+                    }
                 }
             })
         });
-    let mut projection = ISSUE_DETAIL_PROJECTION.to_string();
-    for custom_field in custom_fields {
+    let mut projection = "uuid".to_string();
+    for field in fields {
         projection.push(',');
-        projection.push_str(&custom_field);
+        projection.push_str(&field);
     }
 
     format!(
@@ -84,7 +116,29 @@ pub fn build_issue_detail_query(issue_uuid: &str, definitions: &[IssueFieldDefin
     )
 }
 
-pub fn parse_sort_fields(
+fn projection_kind(
+    definition: &IssueFieldDefinition,
+    type_uuid: Option<&str>,
+) -> Option<DisplayFieldKind> {
+    if !is_onesql_identifier(&definition.uuid) {
+        return None;
+    }
+    if type_uuid == Some("date") {
+        return Some(DisplayFieldKind::Scalar);
+    }
+    let value_type = definition
+        .field_type
+        .as_ref()
+        .and_then(|field_type| field_type.value_type.as_deref());
+    match value_type {
+        Some("single_reference_object" | "multi_reference_object") => {
+            Some(DisplayFieldKind::Reference)
+        }
+        _ => Some(DisplayFieldKind::Scalar),
+    }
+}
+
+pub(crate) fn parse_sort_fields(
     raw_sort: &[std::collections::HashMap<String, crate::ones::raw::SortDescriptor>],
 ) -> Vec<SortField> {
     raw_sort
@@ -101,7 +155,7 @@ pub fn parse_sort_fields(
         .collect()
 }
 
-pub fn build_order_clause(sort: &[SortField]) -> String {
+fn build_order_clause(sort: &[SortField]) -> String {
     if sort.is_empty() {
         return "field009 desc".to_string();
     }
@@ -144,7 +198,9 @@ mod tests {
     #[test]
     fn detail_query_projects_valid_custom_fields() {
         let definitions: Vec<IssueFieldDefinition> = serde_json::from_value(serde_json::json!([
-            { "uuid": "field057", "name": "Comments", "built_in": true, "type": { "value_type": "multi_reference_object" } },
+            { "uuid": "titleForProject", "name": "Title", "built_in": true, "type": { "uuid": "name", "value_type": "text" } },
+            { "uuid": "assigneeForProject", "name": "Assignee", "built_in": true, "type": { "uuid": "assign", "value_type": "single_reference_object", "reference_object_type": "user" } },
+            { "uuid": "field057", "name": "Comments", "built_in": true, "type": { "uuid": "comments", "value_type": "multi_reference_object" } },
             { "uuid": "Wy65kRnx", "name": "Business ID", "built_in": false, "type": { "value_type": "text" } },
             { "uuid": "BfyseLJz", "name": "Developer", "built_in": false, "type": { "value_type": "single_reference_object", "reference_object_type": "user" } },
             { "uuid": "K2VETsUz", "name": "Systems", "built_in": false, "type": { "value_type": "multi_reference_object", "reference_object_type": "option" } },
@@ -152,7 +208,12 @@ mod tests {
             { "uuid": "invalid-field", "name": "Invalid", "built_in": false, "type": { "value_type": "text" } }
         ])).unwrap();
         let query = build_issue_detail_query("issue-1", &definitions);
-        assert!(query.contains("field903,Wy65kRnx"), "{query}");
+        assert!(query.contains("titleForProject"), "{query}");
+        assert!(
+            query.contains("assigneeForProject.uuid,assigneeForProject.name"),
+            "{query}"
+        );
+        assert!(query.contains("Wy65kRnx"), "{query}");
         assert!(query.contains("BfyseLJz.uuid,BfyseLJz.name"), "{query}");
         assert!(query.contains("K2VETsUz.uuid,K2VETsUz.name"), "{query}");
         assert!(!query.contains("field057"));

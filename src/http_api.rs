@@ -1,8 +1,12 @@
 use crate::{
+    api::{
+        ActivityResponse, GroupsResponse, IssueResponse, ViewResponse, ViewsResponse,
+        WorkbenchIssuePage,
+    },
     error::{AppError, AppResult},
     mcp::{McpAuthMode, build_mcp_service},
     models::AuthContext,
-    ones::service::{OnesService, WorkbenchIssuePage},
+    ones::service::OnesService,
 };
 use axum::{
     Json, Router,
@@ -11,7 +15,6 @@ use axum::{
     routing::get,
 };
 use serde::Deserialize;
-use serde_json::json;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -51,33 +54,33 @@ pub fn build_http_app(
 async fn list_views(
     State(state): State<HttpState>,
     headers: HeaderMap,
-) -> AppResult<Json<serde_json::Value>> {
+) -> AppResult<Json<ViewsResponse>> {
     let auth = auth_from_headers(&headers)?;
     let views = state.service.list_workbench_views(&auth).await?;
-    Ok(Json(json!({ "views": views })))
+    Ok(Json(ViewsResponse { views }))
 }
 
 async fn get_view(
     State(state): State<HttpState>,
     Path(view_uuid): Path<String>,
     headers: HeaderMap,
-) -> AppResult<Json<serde_json::Value>> {
+) -> AppResult<Json<ViewResponse>> {
     let auth = auth_from_headers(&headers)?;
     let view = state.service.get_workbench_view(&auth, &view_uuid).await?;
-    Ok(Json(json!({ "view": view })))
+    Ok(Json(ViewResponse { view }))
 }
 
 async fn list_groups(
     State(state): State<HttpState>,
     Path(view_uuid): Path<String>,
     headers: HeaderMap,
-) -> AppResult<Json<serde_json::Value>> {
+) -> AppResult<Json<GroupsResponse>> {
     let auth = auth_from_headers(&headers)?;
     let groups = state
         .service
         .list_workbench_issue_groups(&auth, &view_uuid)
         .await?;
-    Ok(Json(json!({ "groups": groups })))
+    Ok(Json(GroupsResponse { groups }))
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,6 +88,7 @@ struct ListIssuesQuery {
     group_value: Option<String>,
     cursor: Option<String>,
     limit: Option<u32>,
+    redact: Option<bool>,
 }
 
 async fn list_issues(
@@ -102,6 +106,7 @@ async fn list_issues(
             query.group_value.as_deref(),
             query.cursor.as_deref(),
             query.limit,
+            query.redact.unwrap_or(true),
         )
         .await?;
     Ok(Json(page))
@@ -110,66 +115,71 @@ async fn list_issues(
 async fn get_issue_by_display_id(
     State(state): State<HttpState>,
     Path(display_id): Path<String>,
+    Query(query): Query<RedactQuery>,
     headers: HeaderMap,
-) -> AppResult<Json<serde_json::Value>> {
+) -> AppResult<Json<IssueResponse>> {
     let auth = auth_from_headers(&headers)?;
     let issue = state
         .service
-        .get_issue_by_display_id(&auth, &display_id)
+        .get_issue_by_display_id(&auth, &display_id, query.enabled())
         .await?;
-    Ok(Json(json!({ "issue": issue })))
+    Ok(Json(IssueResponse { issue }))
 }
 
 async fn get_issue(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
+    Query(query): Query<RedactQuery>,
     headers: HeaderMap,
-) -> AppResult<Json<serde_json::Value>> {
+) -> AppResult<Json<IssueResponse>> {
     let auth = auth_from_headers(&headers)?;
-    let issue = state.service.get_issue_detail(&auth, &issue_uuid).await?;
-    Ok(Json(json!({ "issue": issue })))
+    let issue = state
+        .service
+        .get_issue_detail(&auth, &issue_uuid, query.enabled())
+        .await?;
+    Ok(Json(IssueResponse { issue }))
 }
 
 async fn list_issue_activity(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
-    Query(query): Query<ListIssuesQuery>,
+    Query(query): Query<ActivityQuery>,
     headers: HeaderMap,
-) -> AppResult<Json<serde_json::Value>> {
+) -> AppResult<Json<ActivityResponse>> {
     let auth = auth_from_headers(&headers)?;
     let activity = state
         .service
-        .list_issue_activity(&auth, &issue_uuid, query.cursor.as_deref(), query.limit)
+        .list_issue_activity(
+            &auth,
+            &issue_uuid,
+            query.cursor.as_deref(),
+            query.limit,
+            query.redact.unwrap_or(true),
+        )
         .await?;
-    Ok(Json(json!({ "activity": activity })))
+    Ok(Json(activity))
 }
 
 async fn openapi() -> Json<serde_json::Value> {
-    Json(json!({
-        "openapi": "3.1.0",
-        "info": {
-            "title": "ONES Issue Wrapper",
-            "version": env!("CARGO_PKG_VERSION"),
-        },
-        "paths": {
-            "/api/workbench/views": { "get": {} },
-            "/api/workbench/views/{view_uuid}": { "get": {} },
-            "/api/workbench/views/{view_uuid}/groups": { "get": {} },
-            "/api/workbench/views/{view_uuid}/issues": { "get": {} },
-            "/api/issues/by-display-id/{display_id}": { "get": {} },
-            "/api/issues/{issue_uuid}": { "get": {} },
-            "/api/issues/{issue_uuid}/activity": { "get": {} }
-        },
-        "components": {
-            "securitySchemes": {
-                "onesEmailPassword": {
-                    "type": "apiKey",
-                    "in": "header",
-                    "name": "x-ones-email"
-                }
-            }
-        }
-    }))
+    Json(crate::openapi::document())
+}
+
+#[derive(Debug, Deserialize)]
+struct RedactQuery {
+    redact: Option<bool>,
+}
+
+impl RedactQuery {
+    fn enabled(&self) -> bool {
+        self.redact.unwrap_or(true)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct ActivityQuery {
+    cursor: Option<String>,
+    limit: Option<u32>,
+    redact: Option<bool>,
 }
 
 pub fn auth_from_headers(headers: &HeaderMap) -> AppResult<AuthContext> {

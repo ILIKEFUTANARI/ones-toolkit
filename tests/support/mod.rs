@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub mod assertions;
+
 use axum::{
     Json, Router,
     body::Body,
@@ -117,10 +119,6 @@ fn build_mock_ones_router(state: MockState) -> Router {
             get(view_list),
         )
         .route(
-            "/project/api/project/team/team-demo-001/user_filter_views/config",
-            get(view_config),
-        )
-        .route(
             "/project/api/project/team/team-demo-001/user_filter_views/detail",
             post(view_detail),
         )
@@ -170,13 +168,24 @@ async fn workitems_onesql(State(_): State<MockState>, request: Request<Body>) ->
     let body = if query.contains("count() as total_count") {
         include_str!("../fixtures/groups.json")
     } else if query.contains("where uid(uuid) = uid('issue-demo-001')") {
+        assert!(!query.contains("field004"), "{query}");
+        assert!(
+            query.contains("ownerDynamic.uuid,ownerDynamic.name"),
+            "{query}"
+        );
+        assert!(
+            query.contains("followersDynamic.uuid,followersDynamic.name"),
+            "{query}"
+        );
         assert!(query.contains("CustomA1.uuid,CustomA1.name"), "{query}");
         assert!(query.contains("CustomB2"), "{query}");
         assert!(query.contains("CustomRich3"), "{query}");
         assert!(!query.contains("field057"), "{query}");
-        assert!(!query.contains("LinkedIssue5"), "{query}");
+        assert!(!query.contains("LinkedIssue6"), "{query}");
         include_str!("../fixtures/issue_detail.json")
     } else {
+        assert!(query.contains("field004.uuid,field004.name"), "{query}");
+        assert!(!query.contains("field008"), "{query}");
         include_str!("../fixtures/issue_list.json")
     };
 
@@ -189,10 +198,6 @@ async fn workitems_onesql(State(_): State<MockState>, request: Request<Body>) ->
 
 async fn view_list() -> impl IntoResponse {
     fixture(include_str!("../fixtures/view_list.json"))
-}
-
-async fn view_config() -> impl IntoResponse {
-    fixture(include_str!("../fixtures/view_config.json"))
 }
 
 async fn view_detail() -> impl IntoResponse {

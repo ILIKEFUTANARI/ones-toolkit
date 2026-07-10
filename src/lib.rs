@@ -1,9 +1,11 @@
+pub mod api;
 pub mod config;
 pub mod error;
 pub mod http_api;
 pub mod mcp;
 pub mod models;
 pub mod ones;
+mod openapi;
 
 pub use config::{AppConfig, StdioAuthConfig};
 pub use error::{AppError, AppResult};

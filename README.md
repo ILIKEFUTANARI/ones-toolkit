@@ -52,12 +52,11 @@ Pushing a tag that matches `v*` triggers the GitHub Actions workflow in
 - Linux arm64
 - macOS arm64
 - Windows amd64
-- Windows arm64
 
 Each release uploads one platform binary plus its `.sha256` file.
 
 You can also run the workflow manually with `workflow_dispatch`, but it expects
-an existing tag such as `v0.1.0`.
+an existing tag such as `v0.2.0`.
 
 ## HTTP API
 
@@ -71,10 +70,10 @@ Routes:
 - `GET /api/workbench/views`
 - `GET /api/workbench/views/{view_uuid}`
 - `GET /api/workbench/views/{view_uuid}/groups`
-- `GET /api/workbench/views/{view_uuid}/issues?group_value=...&cursor=...&limit=...`
-- `GET /api/issues/by-display-id/{display_id}`
-- `GET /api/issues/{issue_uuid}`
-- `GET /api/issues/{issue_uuid}/activity?cursor=...&limit=...`
+- `GET /api/workbench/views/{view_uuid}/issues?group_value=...&cursor=...&limit=...&redact=...`
+- `GET /api/issues/by-display-id/{display_id}?redact=...`
+- `GET /api/issues/{issue_uuid}?redact=...`
+- `GET /api/issues/{issue_uuid}/activity?cursor=...&limit=...&redact=...`
 - `GET /openapi.json`
 
 ## MCP Tools
@@ -99,5 +98,11 @@ named non-empty custom fields, and related-resource summaries. ONES form layouts
 field-definition metadata, and raw activity payloads remain internal. Call
 `list_issue_activity` only when the issue history is needed; it returns paged,
 readable change entries.
+
+Issue lists, details, and activity redact structured user identities by default.
+Pass `redact=false` to the MCP tool or HTTP query to preserve names supplied by
+ONES. This only disables this service's redaction; upstream `[[RDX:...]]` values
+cannot be restored. Aliases are stable within one process, but may change after
+a restart.
 
 Keyword search and write operations are intentionally out of scope for this version.

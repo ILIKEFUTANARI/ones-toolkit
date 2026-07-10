@@ -1,33 +1,36 @@
 use crate::{
+    api::WorkbenchIssuePage,
     config::AppConfig,
     error::{AppError, AppResult},
     models::{
-        AuthContext, IssueSummary, PageInfo, WorkbenchIssueGroup, WorkbenchViewDetail,
-        WorkbenchViewSummary,
+        AuthContext, PageInfo, WorkbenchIssueGroup, WorkbenchViewDetail, WorkbenchViewSummary,
     },
     ones::{
         client::OnesClient,
+        identity::IdentityRegistry,
         query::{
             build_group_count_query, build_issue_list_query, normalize_limit, parse_sort_fields,
         },
         raw::{PageInfoRaw, TreeNode, ViewDetailItem},
-        transform::parse_issue_summary,
+        transform::parse_issue_list_item,
     },
 };
 use serde_json::{Value, json};
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 mod issue;
 
 #[derive(Debug, Clone)]
 pub struct OnesService {
     client: Arc<OnesClient>,
+    identities: Arc<IdentityRegistry>,
 }
 
 impl OnesService {
     pub fn new(config: AppConfig) -> Self {
         Self {
             client: Arc::new(OnesClient::new(config)),
+            identities: Arc::new(IdentityRegistry::default()),
         }
     }
 
@@ -35,25 +38,15 @@ impl OnesService {
         &self,
         auth: &AuthContext,
     ) -> AppResult<Vec<WorkbenchViewSummary>> {
-        let (list, config) = tokio::try_join!(
-            self.client.user_filter_views_list(auth),
-            self.client.user_filter_views_config(auth)
-        )?;
-        let visible: HashMap<_, _> = config
-            .configs
-            .into_iter()
-            .map(|item| (item.view_uuid, item.is_show))
-            .collect();
-
-        Ok(list
+        Ok(self
+            .client
+            .user_filter_views_list(auth)
+            .await?
             .views
             .into_iter()
             .map(|view| WorkbenchViewSummary {
-                uuid: view.uuid.clone(),
+                uuid: view.uuid,
                 name: view.name,
-                shared: view.shared,
-                built_in: view.built_in,
-                is_show: visible.get(&view.uuid).copied().unwrap_or(false),
             })
             .collect())
     }
@@ -81,7 +74,7 @@ impl OnesService {
         }
 
         let issues = self
-            .list_workbench_issues(auth, view_uuid, None, None, Some(1))
+            .list_workbench_issues(auth, view_uuid, None, None, Some(1), true)
             .await?;
         Ok(vec![WorkbenchIssueGroup {
             value: None,
@@ -101,6 +94,7 @@ impl OnesService {
         group_value: Option<&str>,
         cursor: Option<&str>,
         limit: Option<u32>,
+        redact: bool,
     ) -> AppResult<WorkbenchIssuePage> {
         let view = self.resolve_view(auth, view_uuid).await?;
         let limit = normalize_limit(limit);
@@ -115,13 +109,14 @@ impl OnesService {
         let body = self.workitems_body(&view, &query);
         let response = self.client.workitems_onesql(auth, &body).await?;
 
+        let issues = response
+            .data
+            .into_iter()
+            .filter_map(|entry| entry.get("item").cloned())
+            .map(|item| parse_issue_list_item(item, &self.identities, redact))
+            .collect();
         Ok(WorkbenchIssuePage {
-            issues: response
-                .data
-                .into_iter()
-                .filter_map(|entry| entry.get("item").cloned())
-                .map(parse_issue_summary)
-                .collect(),
+            issues,
             page_info: response.page_info.map(to_page_info).unwrap_or_default(),
         })
     }
@@ -156,12 +151,6 @@ struct ResolvedView {
     hierarchy: Option<Value>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WorkbenchIssuePage {
-    pub issues: Vec<IssueSummary>,
-    pub page_info: PageInfo,
-}
-
 fn resolved_view_from_item(item: ViewDetailItem) -> AppResult<ResolvedView> {
     let sort = parse_sort_fields(&item.sort);
     let onesql = item
@@ -179,13 +168,7 @@ fn resolved_view_from_item(item: ViewDetailItem) -> AppResult<ResolvedView> {
             uuid: item.uuid.clone(),
             name: item.name.clone(),
             group_by: item.group_by.clone(),
-            layout: item.layout.clone(),
-            display_type: item.display_type.clone(),
-            shared: item.shared,
-            built_in: item.built_in,
             include_subtasks: item.include_subtasks,
-            is_fold_all_groups: item.is_fold_all_groups,
-            sort: sort.clone(),
             hierarchy_enabled: hierarchy.is_some(),
         },
         onesql,
@@ -257,11 +240,7 @@ fn parse_group_response(data: &[Value], group_by: &str) -> Vec<WorkbenchIssueGro
 fn to_page_info(raw: PageInfoRaw) -> PageInfo {
     PageInfo {
         has_next_page: raw.has_next_page,
-        start_cursor: raw.start_cursor,
-        end_cursor: raw.end_cursor,
-        page_count: raw.page_count,
+        next_cursor: raw.has_next_page.then_some(raw.end_cursor).flatten(),
         total_count: raw.total_count,
-        start_pos: raw.start_pos,
-        end_pos: raw.end_pos,
     }
 }
