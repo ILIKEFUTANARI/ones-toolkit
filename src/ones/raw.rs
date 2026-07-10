@@ -96,21 +96,36 @@ pub struct IssueFormFieldsResponse {
     pub fields: Vec<IssueFieldDefinition>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct IssueFieldDefinition {
     pub uuid: String,
     pub name: Option<String>,
     #[serde(default)]
     pub built_in: bool,
+    #[serde(default)]
+    pub fixed: bool,
     #[serde(rename = "type")]
     pub field_type: Option<IssueFieldType>,
+    pub setting: Option<IssueFieldSetting>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct IssueFieldType {
     pub uuid: Option<String>,
     pub value_type: Option<String>,
     pub reference_object_type: Option<String>,
+    #[serde(default)]
+    pub can_be_filter: bool,
+    #[serde(default)]
+    pub can_be_sort: bool,
+    #[serde(default)]
+    pub can_be_group: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct IssueFieldSetting {
+    pub config_key: Option<String>,
+    pub direction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

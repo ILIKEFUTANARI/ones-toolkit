@@ -40,6 +40,20 @@ async fn mcp_http_exposes_issue_tooling() {
     );
     assert_eq!(tools.len(), 7);
     assert!(tools.iter().any(|tool| tool.name == "list_issue_activity"));
+    for name in ["get_issue_by_display_id", "get_issue_detail"] {
+        let tool = tools.iter().find(|tool| tool.name == name).unwrap();
+        let output_schema = serde_json::to_string(tool.output_schema.as_ref().unwrap()).unwrap();
+        assert!(output_schema.contains("IssueDetail"), "{output_schema}");
+        for removed in [
+            "\"lookup\"",
+            "\"summary\"",
+            "\"core_fields\"",
+            "\"field_uuid\"",
+            "\"related\"",
+        ] {
+            assert!(!output_schema.contains(removed), "{output_schema}");
+        }
+    }
     for name in [
         "list_workbench_issues",
         "get_issue_by_display_id",

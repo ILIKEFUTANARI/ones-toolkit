@@ -27,19 +27,6 @@ pub fn display_field_kind(definition: &IssueFieldDefinition) -> Option<DisplayFi
     }
 }
 
-pub fn definition_by_type<'a>(
-    definitions: &'a [IssueFieldDefinition],
-    type_uuid: &str,
-) -> Option<&'a IssueFieldDefinition> {
-    definitions.iter().find(|definition| {
-        definition
-            .field_type
-            .as_ref()
-            .and_then(|field_type| field_type.uuid.as_deref())
-            == Some(type_uuid)
-    })
-}
-
 pub fn is_onesql_identifier(value: &str) -> bool {
     !value.is_empty()
         && value

@@ -91,6 +91,16 @@ impl OnesClient {
         .await
     }
 
+    pub async fn team_fields(&self, auth: &AuthContext) -> AppResult<IssueFormFieldsResponse> {
+        self.request_json(
+            Method::GET,
+            auth,
+            self.ones_project_team_url("v2/field/list"),
+            None::<&()>,
+        )
+        .await
+    }
+
     pub async fn workitems_onesql(
         &self,
         auth: &AuthContext,

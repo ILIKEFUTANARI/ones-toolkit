@@ -86,6 +86,17 @@ Routes:
 - `get_issue_detail`
 - `list_issue_activity`
 
+## MCP Resources
+
+- `ones://fields` returns the team field catalog.
+- `ones://issues/{issue_uuid}/fields` returns fields applicable to one issue.
+
+Field resources expose compact metadata such as field UUID, semantic type, value
+type, reference type, and filter/sort/group capabilities. Core response fields
+such as title, status, project, and assignee are resolved by the service from the
+team catalog; callers and AI clients do not select those mappings. Team field
+metadata is cached per credential set for five minutes.
+
 ## Current scope
 
 v1 is read-only and prioritizes:

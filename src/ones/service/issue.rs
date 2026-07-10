@@ -42,16 +42,16 @@ impl OnesService {
         redact: bool,
     ) -> AppResult<IssueDetail> {
         let detail_request = async {
-            let fields = self
-                .client
-                .issue_form_fields(auth, &lookup.issue_uuid)
-                .await?;
-            let detail_query = build_issue_detail_query(&lookup.issue_uuid, &fields.fields);
+            let (fields, catalog) = tokio::try_join!(
+                self.issue_field_definitions(auth, &lookup.issue_uuid),
+                self.team_field_catalog(auth),
+            )?;
+            let detail_query = build_issue_detail_query(&lookup.issue_uuid, &catalog.core, &fields);
             let body = json!({ "query": detail_query });
             let detail = self.client.workitems_onesql(auth, &body).await?;
-            Ok::<_, AppError>((detail, fields))
+            Ok::<_, AppError>((detail, fields, catalog))
         };
-        let ((detail, fields), related) = tokio::try_join!(
+        let ((detail, fields, catalog), related) = tokio::try_join!(
             detail_request,
             self.client.quick_action_task_info(auth, &lookup.issue_uuid),
         )?;
@@ -64,7 +64,8 @@ impl OnesService {
         Ok(parse_issue_detail(
             &detail_item,
             lookup,
-            &fields.fields,
+            &fields,
+            &catalog.core,
             related.data.task,
             &self.identities,
             redact,

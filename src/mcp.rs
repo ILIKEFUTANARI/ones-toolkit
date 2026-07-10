@@ -10,15 +10,16 @@ use crate::{
 };
 use http::request::Parts;
 use rmcp::{
-    Json, ServerHandler,
+    Json,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    model::{ServerCapabilities, ServerInfo},
     schemars::JsonSchema,
     service::RequestContext,
-    tool_handler, tool_router,
+    tool_router,
 };
 use serde::Deserialize;
 use std::sync::Arc;
+
+mod resources;
 
 #[derive(Debug, Clone)]
 pub enum McpAuthMode {
@@ -188,20 +189,6 @@ impl OnesMcpServer {
     }
 }
 
-#[tool_handler(router = self.tool_router)]
-impl ServerHandler for OnesMcpServer {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_instructions(
-                "Read-only ONES issue wrapper exposing workbench views and issue details.",
-            )
-            .with_server_info(rmcp::model::Implementation::new(
-                "ones-mcp",
-                env!("CARGO_PKG_VERSION"),
-            ))
-    }
-}
-
 #[derive(Debug, Deserialize, JsonSchema)]
 struct WorkbencViewRequest {
     view_uuid: String,
@@ -236,6 +223,6 @@ struct ListIssueActivityRequest {
     redact: Option<bool>,
 }
 
-fn map_error<T>(result: AppResult<T>) -> Result<T, rmcp::ErrorData> {
+pub(super) fn map_error<T>(result: AppResult<T>) -> Result<T, rmcp::ErrorData> {
     result.map_err(|error| rmcp::ErrorData::internal_error(error.to_string(), None))
 }

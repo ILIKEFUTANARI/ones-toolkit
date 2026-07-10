@@ -1,1 +1,1 @@
-{"data":[{"type":"group_aggregate","group_aggregate":[{"field006":{"label":"Demo Project","value":"proj-demo-001"},"hierarchy_count":11,"total_count":8}]}]}
+{"data":[{"type":"group_aggregate","group_aggregate":[{"projectDynamic":{"label":"Demo Project","value":"proj-demo-001"},"hierarchy_count":11,"total_count":8}]}]}

@@ -8,8 +8,7 @@ use super::{
 use crate::{
     models::{DisplayField, IssueDetail, IssueLookupResult},
     ones::{
-        field::{definition_by_type, display_field_kind},
-        identity::IdentityRegistry,
+        field::display_field_kind, field_catalog::CoreFields, identity::IdentityRegistry,
         raw::IssueFieldDefinition,
     },
 };
@@ -19,18 +18,18 @@ pub fn parse_issue_detail(
     item: &Value,
     lookup: IssueLookupResult,
     definitions: &[IssueFieldDefinition],
+    core: &CoreFields,
     related: Value,
     registry: &IdentityRegistry,
     redact: bool,
 ) -> IssueDetail {
     let mut identities = registry.scope(redact);
-    let creator =
-        object_by_type(item, definitions, "creator").and_then(|value| identities.person(&value));
-    let assignee =
-        object_by_type(item, definitions, "assign").and_then(|value| identities.person(&value));
-    let watchers = people(array_by_type(item, definitions, "watcher"), &mut identities);
+    let creator = object_field(item, &core.creator).and_then(|value| identities.person(&value));
+    let assignee = object_field(item, &core.assignee).and_then(|value| identities.person(&value));
+    let watchers = people(array_field(item, &core.watchers), &mut identities);
     let custom_fields = parse_custom_fields(item, definitions, &mut identities);
-    let description = value_by_type(item, definitions, "rich_desc")
+    let description = item
+        .get(&core.description)
         .and_then(Value::as_str)
         .map(html_to_text)
         .filter(|value| !value.is_empty())
@@ -38,68 +37,25 @@ pub fn parse_issue_detail(
 
     IssueDetail {
         uuid: string_field(item, "uuid").unwrap_or(lookup.issue_uuid),
-        display_id: string_by_type(item, definitions, "display_id").or(lookup.display_id),
-        title: string_by_type(item, definitions, "name"),
-        issue_type: object_by_type(item, definitions, "issue_type")
-            .and_then(|value| ref_name(&value)),
-        status: object_by_type(item, definitions, "status")
-            .and_then(|value| status_summary(&value)),
-        project: object_by_type(item, definitions, "project").and_then(|value| ref_name(&value)),
+        display_id: string_field(item, &core.display_id).or(lookup.display_id),
+        title: string_field(item, &core.title),
+        issue_type: object_field(item, &core.issue_type).and_then(|value| ref_name(&value)),
+        status: object_field(item, &core.status).and_then(|value| status_summary(&value)),
+        project: object_field(item, &core.project).and_then(|value| ref_name(&value)),
         creator,
         assignee,
         watchers: non_empty(watchers),
-        priority: object_by_type(item, definitions, "priority").and_then(|value| ref_name(&value)),
-        sprint: object_by_type(item, definitions, "sprint").and_then(|value| ref_name(&value)),
-        modules: non_empty(names(array_by_type(
-            item,
-            definitions,
-            "multi_project_module",
-        ))),
-        due_date: string_by_type(item, definitions, "date"),
-        created_at: value_by_type(item, definitions, "create_time").and_then(format_timestamp),
-        updated_at: value_by_type(item, definitions, "update_time").and_then(format_timestamp),
+        priority: object_field(item, &core.priority).and_then(|value| ref_name(&value)),
+        sprint: object_field(item, &core.sprint).and_then(|value| ref_name(&value)),
+        modules: non_empty(names(array_field(item, &core.modules))),
+        due_date: string_field(item, &core.due_date),
+        created_at: item.get(&core.created_at).and_then(format_timestamp),
+        updated_at: item.get(&core.updated_at).and_then(format_timestamp),
         description,
         custom_fields: non_empty(custom_fields),
         related_wiki_pages: non_empty(parse_related_wiki_pages(&related)),
         related_cases: non_empty(parse_related_cases(&related)),
     }
-}
-
-fn value_by_type<'a>(
-    item: &'a Value,
-    definitions: &[IssueFieldDefinition],
-    type_uuid: &str,
-) -> Option<&'a Value> {
-    let definition = definition_by_type(definitions, type_uuid)?;
-    item.get(&definition.uuid)
-}
-
-fn string_by_type(
-    item: &Value,
-    definitions: &[IssueFieldDefinition],
-    type_uuid: &str,
-) -> Option<String> {
-    let definition = definition_by_type(definitions, type_uuid)?;
-    string_field(item, &definition.uuid)
-}
-
-fn object_by_type(
-    item: &Value,
-    definitions: &[IssueFieldDefinition],
-    type_uuid: &str,
-) -> Option<Value> {
-    let definition = definition_by_type(definitions, type_uuid)?;
-    object_field(item, &definition.uuid)
-}
-
-fn array_by_type(
-    item: &Value,
-    definitions: &[IssueFieldDefinition],
-    type_uuid: &str,
-) -> Vec<Value> {
-    definition_by_type(definitions, type_uuid)
-        .map(|definition| array_field(item, &definition.uuid))
-        .unwrap_or_default()
 }
 
 fn parse_custom_fields(
