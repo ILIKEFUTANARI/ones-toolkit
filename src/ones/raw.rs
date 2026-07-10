@@ -124,7 +124,23 @@ pub struct PageInfoRaw {
 #[derive(Debug, Deserialize)]
 pub struct IssueFormFieldsResponse {
     #[serde(default)]
-    pub fields: Vec<Value>,
+    pub fields: Vec<IssueFieldDefinition>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IssueFieldDefinition {
+    pub uuid: String,
+    pub name: Option<String>,
+    #[serde(default)]
+    pub built_in: bool,
+    #[serde(rename = "type")]
+    pub field_type: Option<IssueFieldType>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct IssueFieldType {
+    pub value_type: Option<String>,
+    pub reference_object_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -170,9 +170,11 @@ async fn workitems_onesql(State(_): State<MockState>, request: Request<Body>) ->
     let body = if query.contains("count() as total_count") {
         include_str!("../fixtures/groups.json")
     } else if query.contains("where uid(uuid) = uid('issue-demo-001')") {
-        assert!(query.contains("CustomA1"), "{query}");
+        assert!(query.contains("CustomA1.uuid,CustomA1.name"), "{query}");
         assert!(query.contains("CustomB2"), "{query}");
         assert!(query.contains("CustomRich3"), "{query}");
+        assert!(!query.contains("field057"), "{query}");
+        assert!(!query.contains("LinkedIssue5"), "{query}");
         include_str!("../fixtures/issue_detail.json")
     } else {
         include_str!("../fixtures/issue_list.json")

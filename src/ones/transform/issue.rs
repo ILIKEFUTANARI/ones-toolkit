@@ -3,7 +3,7 @@ use super::value::{
 };
 use crate::{
     models::{DisplayField, IssueCoreFields, IssueSummary, NamedRef},
-    ones::query::is_core_field_uuid,
+    ones::{field::display_field_kind, raw::IssueFieldDefinition},
 };
 use serde_json::Value;
 
@@ -58,20 +58,26 @@ pub fn parse_core_fields(item: &Value) -> IssueCoreFields {
     }
 }
 
-pub fn parse_custom_fields(item: &Value, definitions: &[Value]) -> Vec<DisplayField> {
+pub fn parse_custom_fields(
+    item: &Value,
+    definitions: &[IssueFieldDefinition],
+) -> Vec<DisplayField> {
     definitions
         .iter()
         .filter_map(|definition| {
-            let field_uuid = string_field(definition, "uuid")?;
-            if is_core_field_uuid(&field_uuid) {
-                return None;
-            }
-            let value = display_value(item.get(&field_uuid)?, definition)?;
+            display_field_kind(definition)?;
+            let value_type = definition
+                .field_type
+                .as_ref()
+                .and_then(|field_type| field_type.value_type.as_deref());
+            let value = display_value(item.get(&definition.uuid)?, value_type)?;
             Some(DisplayField {
-                name: string_field(definition, "name")
+                name: definition
+                    .name
+                    .clone()
                     .unwrap_or_else(|| "unnamed field".to_string()),
                 value,
-                field_uuid,
+                field_uuid: definition.uuid.clone(),
             })
         })
         .collect()
@@ -112,12 +118,20 @@ mod tests {
 
     #[test]
     fn custom_fields_are_named_and_keep_duplicate_labels() {
-        let item = json!({ "first": { "name": "A" }, "second": 7, "empty": null });
-        let definitions = vec![
-            json!({ "uuid": "first", "name": "Estimate" }),
-            json!({ "uuid": "second", "name": "Estimate" }),
-            json!({ "uuid": "empty", "name": "Empty" }),
-        ];
+        let item = json!({
+            "first": { "name": "A" },
+            "second": 7,
+            "empty": null,
+            "builtIn": "hidden",
+            "linkedIssue": [{ "name": "hidden" }]
+        });
+        let definitions: Vec<IssueFieldDefinition> = serde_json::from_value(json!([
+            { "uuid": "first", "name": "Estimate", "built_in": false, "type": { "value_type": "single_reference_object", "reference_object_type": "option" } },
+            { "uuid": "second", "name": "Estimate", "built_in": false, "type": { "value_type": "integer" } },
+            { "uuid": "empty", "name": "Empty", "built_in": false, "type": { "value_type": "text" } },
+            { "uuid": "builtIn", "name": "Built in", "built_in": true, "type": { "value_type": "text" } },
+            { "uuid": "linkedIssue", "name": "Linked issue", "built_in": false, "type": { "value_type": "multi_reference_object", "reference_object_type": "issue" } }
+        ])).unwrap();
         let fields = parse_custom_fields(&item, &definitions);
         assert_eq!(fields.len(), 2);
         assert_eq!(fields[0].value, "A");

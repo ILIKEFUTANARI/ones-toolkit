@@ -1,13 +1,10 @@
 use serde_json::Value;
 
-pub(super) fn display_value(value: &Value, definition: &Value) -> Option<String> {
+pub(super) fn display_value(value: &Value, value_type: Option<&str>) -> Option<String> {
     match value {
         Value::Null => None,
         Value::Bool(value) => Some(value.to_string()),
         Value::Number(value) => {
-            let value_type = definition
-                .pointer("/type/value_type")
-                .and_then(Value::as_str);
             if value_type == Some("datetime") {
                 format_timestamp(&Value::Number(value.clone()))
             } else {
@@ -21,7 +18,7 @@ pub(super) fn display_value(value: &Value, definition: &Value) -> Option<String>
         Value::Array(values) => {
             let values: Vec<_> = values
                 .iter()
-                .filter_map(|value| display_value(value, &Value::Null))
+                .filter_map(|value| display_value(value, None))
                 .collect();
             (!values.is_empty()).then(|| values.join(", "))
         }

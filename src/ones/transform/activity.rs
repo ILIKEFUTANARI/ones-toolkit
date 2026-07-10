@@ -42,8 +42,5 @@ fn activity_value(ext: &Value, prefix: &str) -> Option<String> {
         format!("{prefix}_value"),
     ]
     .into_iter()
-    .find_map(|key| {
-        ext.get(&key)
-            .and_then(|value| display_value(value, &Value::Null))
-    })
+    .find_map(|key| ext.get(&key).and_then(|value| display_value(value, None)))
 }

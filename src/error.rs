@@ -20,8 +20,12 @@ pub enum AppError {
     NotFound(String),
     #[error("upstream request failed: {0}")]
     Upstream(String),
-    #[error("upstream returned status {status}: {message}")]
-    UpstreamStatus { status: u16, message: String },
+    #[error("upstream {endpoint} returned status {status}: {message}")]
+    UpstreamStatus {
+        status: u16,
+        endpoint: String,
+        message: String,
+    },
     #[error("failed to parse upstream response: {0}")]
     InvalidUpstream(String),
     #[error(transparent)]
@@ -41,9 +45,14 @@ impl AppError {
         Self::InvalidUpstream(message.into())
     }
 
-    pub fn upstream_status(status: reqwest::StatusCode, message: impl Into<String>) -> Self {
+    pub fn upstream_status(
+        status: reqwest::StatusCode,
+        endpoint: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self::UpstreamStatus {
             status: status.as_u16(),
+            endpoint: endpoint.into(),
             message: message.into(),
         }
     }

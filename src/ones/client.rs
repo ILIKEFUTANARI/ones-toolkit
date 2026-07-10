@@ -203,7 +203,11 @@ impl OnesClient {
         let status = response.status();
         if !status.is_success() {
             let text = response.text().await.unwrap_or_default();
-            return Err(AppError::upstream_status(status, text));
+            return Err(AppError::upstream_status(
+                status,
+                format!("{method} {url}"),
+                text,
+            ));
         }
 
         let value = response.json::<Value>().await?;
@@ -233,7 +237,7 @@ impl OnesClient {
         );
         let response = self
             .http
-            .post(url)
+            .post(&url)
             .json(&serde_json::json!({
                 "email": auth.email,
                 "password": auth.password,
@@ -244,7 +248,11 @@ impl OnesClient {
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            return Err(AppError::upstream_status(status, text));
+            return Err(AppError::upstream_status(
+                status,
+                format!("POST {url}"),
+                text,
+            ));
         }
 
         let body: LoginResponse = response.json().await?;
