@@ -1,11 +1,12 @@
 use axum::{
     Json, Router,
     body::Body,
-    extract::State,
+    extract::{Path, Query, State},
     http::{Request, StatusCode},
     response::IntoResponse,
     routing::{get, post},
 };
+use serde::Deserialize;
 use serde_json::{Value, json};
 use std::sync::{
     Arc,
@@ -38,6 +39,34 @@ pub fn build_mock_ones_router(state: MockState) -> Router {
             post(form_fields),
         )
         .route(
+            "/project/api/ones-project/team/team-demo-001/issue/issue-demo-001/v2/transitions",
+            get(transitions),
+        )
+        .route(
+            "/project/api/ones-project/team/team-demo-001/transition/{transition_uuid}",
+            get(transition_detail),
+        )
+        .route(
+            "/project/api/ones-project/team/team-demo-001/issue_form/execute_form_rule",
+            post(execute_form_rule),
+        )
+        .route(
+            "/project/api/ones-project/team/team-demo-001/tasks/check_update_permission",
+            post(check_update_permission),
+        )
+        .route(
+            "/project/api/project/team/team-demo-001/project/project-demo-001/recordable_manhour",
+            post(recordable_manhour),
+        )
+        .route(
+            "/project/api/project/team/team-demo-001/task/issue-demo-001/new_transit",
+            post(new_transit),
+        )
+        .route(
+            "/project/api/ones-project/team/team-demo-001/async_status",
+            post(async_status),
+        )
+        .route(
             "/project/api/ones-project/team/team-demo-001/v2/field/list",
             get(team_fields),
         )
@@ -46,8 +75,20 @@ pub fn build_mock_ones_router(state: MockState) -> Router {
             get(messages),
         )
         .route(
+            "/project/api/project/team/team-demo-001/task/issue-demo-001/attachments",
+            get(attachments),
+        )
+        .route(
+            "/project/api/project/team/team-demo-001/res/attachment/{attachment_uuid}",
+            get(attachment_download),
+        )
+        .route(
             "/project/api/project/team/team-demo-001/items/graphql",
             post(related),
+        )
+        .route(
+            "/project/api/project/team/team-demo-001/devops/scm/repo/repo-demo-001/branch/add",
+            post(add_branch),
         )
         .route(
             "/project/api/ones-project/team/team-demo-001/workitems/onesql",
@@ -81,7 +122,12 @@ async fn workitems_onesql(State(_): State<MockState>, request: Request<Body>) ->
     let value: Value = serde_json::from_slice(&bytes).unwrap();
     let query = value["query"].as_str().unwrap_or_default();
 
-    let body = if query.contains("count() as total_count") {
+    let body = if query.contains("projectDynamic.uuid,issueTypeDynamic.uuid")
+        || query.contains("projectDynamic,issueTypeDynamic")
+        || query.contains("field061")
+    {
+        include_str!("../fixtures/workflow_issue_values.json")
+    } else if query.contains("count() as total_count") {
         include_str!("../fixtures/groups.json")
     } else if query.contains("where uid(uuid) = uid('issue-demo-001')") {
         assert!(
@@ -128,16 +174,124 @@ async fn identifier() -> impl IntoResponse {
     fixture(include_str!("../fixtures/identifier.json"))
 }
 
-async fn form_fields() -> impl IntoResponse {
-    fixture(include_str!("../fixtures/form_fields.json"))
+async fn form_fields(request: Request<Body>) -> impl IntoResponse {
+    let bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let value: Value = serde_json::from_slice(&bytes).unwrap();
+    if value.get("transition_context").is_some() {
+        if value["transition_context"]["transition_uuid"] == "transition-demo-002" {
+            return fixture(r#"{"fields":[]}"#);
+        }
+        fixture(include_str!("../fixtures/transition_fields.json"))
+    } else {
+        fixture(include_str!("../fixtures/form_fields.json"))
+    }
+}
+
+async fn transitions() -> impl IntoResponse {
+    fixture(include_str!("../fixtures/transitions.json"))
+}
+
+async fn transition_detail(Path(transition_uuid): Path<String>) -> impl IntoResponse {
+    if transition_uuid == "transition-demo-002" {
+        fixture(include_str!("../fixtures/transition_detail_review.json"))
+    } else {
+        fixture(include_str!("../fixtures/transition_detail.json"))
+    }
+}
+
+async fn execute_form_rule() -> impl IntoResponse {
+    fixture(include_str!("../fixtures/transition_rule.json"))
+}
+
+async fn check_update_permission() -> impl IntoResponse {
+    fixture(include_str!("../fixtures/permission.json"))
+}
+
+async fn recordable_manhour() -> impl IntoResponse {
+    fixture(include_str!("../fixtures/recordable_manhour.json"))
+}
+
+async fn new_transit(request: Request<Body>) -> impl IntoResponse {
+    let bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let value: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(value["transition_uuid"], "transition-demo-001");
+    assert!(
+        value["field_values"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|field| field["field_uuid"] == "XgVo3CWJ")
+    );
+    let worklog = value["field_values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|field| field["field_uuid"] == "field061")
+        .unwrap();
+    assert_eq!(worklog["value"][0]["hours"], 600000);
+    assert_eq!(worklog["value"][0]["owner"], "session-user-demo");
+    assert_eq!(worklog["value"][0]["task"], "issue-demo-001");
+    fixture(include_str!("../fixtures/new_transit.json"))
+}
+
+async fn async_status() -> impl IntoResponse {
+    fixture(include_str!("../fixtures/async_status_done.json"))
 }
 
 async fn messages() -> impl IntoResponse {
     fixture(include_str!("../fixtures/messages.json"))
 }
 
-async fn related() -> impl IntoResponse {
-    fixture(include_str!("../fixtures/related.json"))
+#[derive(Deserialize)]
+struct AttachmentQuery {
+    since: u64,
+}
+
+async fn attachments(Query(query): Query<AttachmentQuery>) -> impl IntoResponse {
+    if query.since == 100 {
+        fixture(include_str!("../fixtures/attachments_next.json"))
+    } else {
+        assert_eq!(query.since, 0);
+        fixture(include_str!("../fixtures/attachments.json"))
+    }
+}
+
+async fn attachment_download(Path(attachment_uuid): Path<String>) -> impl IntoResponse {
+    if attachment_uuid == "attachment-demo-002" {
+        fixture(include_str!("../fixtures/attachment_download_next.json"))
+    } else {
+        fixture(include_str!("../fixtures/attachment_download.json"))
+    }
+}
+
+async fn related(request: Request<Body>) -> impl IntoResponse {
+    let bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let value: Value = serde_json::from_slice(&bytes).unwrap();
+    let query = value["query"].as_str().unwrap_or_default();
+    if query.contains("tStubTask") {
+        fixture(include_str!("../fixtures/code_repositories.json"))
+    } else if query.contains("devopsBranches") {
+        fixture(include_str!("../fixtures/code_links.json"))
+    } else {
+        fixture(include_str!("../fixtures/related.json"))
+    }
+}
+
+async fn add_branch(request: Request<Body>) -> impl IntoResponse {
+    let bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let value: Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(value["task_uuid"], "issue-demo-001");
+    assert_eq!(value["source_branch"], "main");
+    assert_eq!(value["target_branch"], "feature/demo");
+    fixture(include_str!("../fixtures/branch_add.json"))
 }
 
 fn fixture(body: &'static str) -> impl IntoResponse {

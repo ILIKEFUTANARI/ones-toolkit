@@ -1,12 +1,17 @@
 use crate::{
     api::{
-        ActivityResponse, GroupsResponse, IssueResponse, ViewResponse, ViewsResponse,
-        WorkbenchIssuePage,
+        ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse,
+        GroupsResponse, IssueResponse, ViewResponse, ViewsResponse, WorkbenchIssuePage,
     },
+    code::CreateBranchInput,
     error::{AppError, AppResult},
     http_api::auth_from_headers,
     models::AuthContext,
     ones::service::OnesService,
+    workflow::{
+        IssueTransitionsResponse, TransitionExecutionResponse, TransitionPreviewResponse,
+        TransitionValues,
+    },
 };
 use http::request::Parts;
 use rmcp::{
@@ -166,6 +171,106 @@ impl OnesMcpServer {
     }
 
     #[rmcp::tool(
+        description = "List attachments for one ONES issue and return temporary download URLs"
+    )]
+    async fn list_issue_attachments(
+        &self,
+        Parameters(IssueAttachmentsRequest { issue_uuid, cursor }): Parameters<
+            IssueAttachmentsRequest,
+        >,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<AttachmentsResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let attachments = map_error(
+            self.service
+                .list_issue_attachments(&auth, &issue_uuid, cursor.as_deref())
+                .await,
+        )?;
+        Ok(Json(attachments))
+    }
+
+    #[rmcp::tool(
+        description = "List ONES code links for one issue, including branches, commits, and pull requests"
+    )]
+    async fn list_issue_code_links(
+        &self,
+        Parameters(request): Parameters<IssueCodeLinksRequest>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<CodeLinksResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let links = map_error(
+            self.service
+                .list_issue_code_links(&auth, &request.issue_uuid, request.redact.unwrap_or(true))
+                .await,
+        )?;
+        Ok(Json(links))
+    }
+
+    #[rmcp::tool(
+        description = "Create a source-control branch through ONES for one issue and linked repository"
+    )]
+    async fn create_issue_branch(
+        &self,
+        Parameters(request): Parameters<CreateBranchRequest>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<CreateBranchResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let result = map_error(
+            self.service
+                .create_issue_branch(&auth, &request.issue_uuid, &request.input)
+                .await,
+        )?;
+        Ok(Json(result))
+    }
+
+    #[rmcp::tool(
+        description = "List available ONES status transitions and their fields for one issue"
+    )]
+    async fn list_issue_transitions(
+        &self,
+        Parameters(IssueTransitionLookup { issue_uuid }): Parameters<IssueTransitionLookup>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<IssueTransitionsResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let transitions = map_error(
+            self.service
+                .list_issue_transitions(&auth, &issue_uuid)
+                .await,
+        )?;
+        Ok(Json(transitions))
+    }
+
+    #[rmcp::tool(description = "Preview an ONES status transition without writing changes")]
+    async fn preview_issue_transition(
+        &self,
+        Parameters(request): Parameters<IssueTransitionRequest>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<TransitionPreviewResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let preview = map_error(
+            self.service
+                .preview_issue_transition(&auth, &request.issue_uuid, &request.values)
+                .await,
+        )?;
+        Ok(Json(preview))
+    }
+
+    #[rmcp::tool(description = "Execute a previously previewed ONES status transition")]
+    async fn execute_issue_transition(
+        &self,
+        Parameters(request): Parameters<IssueTransitionRequest>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<TransitionExecutionResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let result = map_error(
+            self.service
+                .execute_issue_transition(&auth, &request.issue_uuid, &request.values)
+                .await,
+        )?;
+        Ok(Json(result))
+    }
+
+    #[rmcp::tool(
         description = "List compact, human-readable activity for one ONES issue; use the returned cursor for the next page"
     )]
     async fn list_issue_activity(
@@ -213,6 +318,37 @@ struct DisplayIdRequest {
 struct IssueUuidRequest {
     issue_uuid: String,
     redact: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct IssueAttachmentsRequest {
+    issue_uuid: String,
+    cursor: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct IssueCodeLinksRequest {
+    issue_uuid: String,
+    redact: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct CreateBranchRequest {
+    issue_uuid: String,
+    #[serde(flatten)]
+    input: CreateBranchInput,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct IssueTransitionLookup {
+    issue_uuid: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct IssueTransitionRequest {
+    issue_uuid: String,
+    #[serde(flatten)]
+    values: TransitionValues,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

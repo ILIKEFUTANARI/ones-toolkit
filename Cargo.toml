@@ -2,7 +2,7 @@
 name = "ones"
 version = "0.2.1"
 edition = "2024"
-description = "Read-only ONES issue wrapper with HTTP API and MCP endpoints"
+description = "ONES issue wrapper with HTTP API and MCP endpoints"
 license = "MIT"
 readme = "README.md"
 repository = "https://github/cloudiful/ones-mcp"

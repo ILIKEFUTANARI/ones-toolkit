@@ -13,10 +13,16 @@ use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{Mutex, RwLock};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TransportRetry {
+    Enabled,
+    Disabled,
+}
+
 #[derive(Debug, Clone)]
-struct Session {
-    token: String,
-    user_uuid: String,
+pub(crate) struct Session {
+    pub(crate) token: String,
+    pub(crate) user_uuid: String,
 }
 
 #[derive(Debug, Clone)]
@@ -147,7 +153,7 @@ impl OnesClient {
         .await
     }
 
-    async fn request_json<T, B>(
+    pub(crate) async fn request_json<T, B>(
         &self,
         method: Method,
         auth: &AuthContext,
@@ -158,7 +164,38 @@ impl OnesClient {
         T: serde::de::DeserializeOwned,
         B: Serialize + ?Sized,
     {
-        let value = self.request_value(method, auth, url, body).await?;
+        self.request_json_with_retry(method, auth, url, body, TransportRetry::Enabled)
+            .await
+    }
+
+    pub(crate) async fn request_json_once<T, B>(
+        &self,
+        method: Method,
+        auth: &AuthContext,
+        url: String,
+        body: Option<&B>,
+    ) -> AppResult<T>
+    where
+        T: serde::de::DeserializeOwned,
+        B: Serialize + ?Sized,
+    {
+        self.request_json_with_retry(method, auth, url, body, TransportRetry::Disabled)
+            .await
+    }
+
+    async fn request_json_with_retry<T, B>(
+        &self,
+        method: Method,
+        auth: &AuthContext,
+        url: String,
+        body: Option<&B>,
+        retry: TransportRetry,
+    ) -> AppResult<T>
+    where
+        T: serde::de::DeserializeOwned,
+        B: Serialize + ?Sized,
+    {
+        let value = self.request_value(method, auth, url, body, retry).await?;
         serde_json::from_value(value).map_err(AppError::from)
     }
 
@@ -168,6 +205,7 @@ impl OnesClient {
         auth: &AuthContext,
         url: String,
         body: Option<&B>,
+        retry: TransportRetry,
     ) -> AppResult<Value>
     where
         B: Serialize + ?Sized,
@@ -178,7 +216,9 @@ impl OnesClient {
             .await
         {
             Ok(response) => response,
-            Err(AppError::Http(error)) if is_retryable_transport_error(&error) => {
+            Err(AppError::Http(error))
+                if retry == TransportRetry::Enabled && is_retryable_transport_error(&error) =>
+            {
                 self.send_with_session(&method, &url, body, &first_session)
                     .await?
             }
@@ -210,7 +250,7 @@ impl OnesClient {
         Ok(value)
     }
 
-    async fn ensure_session(&self, auth: &AuthContext) -> AppResult<Session> {
+    pub(crate) async fn ensure_session(&self, auth: &AuthContext) -> AppResult<Session> {
         if let Some(session) = self.sessions.read().await.get(auth).cloned() {
             return Ok(session);
         }
@@ -282,14 +322,14 @@ impl OnesClient {
         request.send().await.map_err(AppError::from)
     }
 
-    fn project_team_url(&self, suffix: &str) -> String {
+    pub(crate) fn project_team_url(&self, suffix: &str) -> String {
         format!(
             "{}/project/api/project/team/{}/{}",
             self.config.ones_base_url, self.config.team_uuid, suffix
         )
     }
 
-    fn ones_project_team_url(&self, suffix: &str) -> String {
+    pub(crate) fn ones_project_team_url(&self, suffix: &str) -> String {
         format!(
             "{}/project/api/ones-project/team/{}/{}",
             self.config.ones_base_url, self.config.team_uuid, suffix

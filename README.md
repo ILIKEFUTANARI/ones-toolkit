@@ -1,6 +1,6 @@
 # ones
 
-Read-only ONES issue wrapper with:
+ONES issue wrapper with:
 
 - HTTP JSON API for humans and scripts
 - MCP over Streamable HTTP
@@ -73,6 +73,12 @@ Routes:
 - `GET /api/workbench/views/{view_uuid}/issues?group_value=...&cursor=...&limit=...&redact=...`
 - `GET /api/issues/by-display-id/{display_id}?redact=...`
 - `GET /api/issues/{issue_uuid}?redact=...`
+- `GET /api/issues/{issue_uuid}/attachments?cursor=...`
+- `GET /api/issues/{issue_uuid}/code-links?redact=...`
+- `POST /api/issues/{issue_uuid}/branches`
+- `GET /api/issues/{issue_uuid}/transitions`
+- `POST /api/issues/{issue_uuid}/transition-preview`
+- `POST /api/issues/{issue_uuid}/transition`
 - `GET /api/issues/{issue_uuid}/activity?cursor=...&limit=...&redact=...`
 - `GET /openapi.json`
 
@@ -84,6 +90,12 @@ Routes:
 - `list_workbench_issues`
 - `get_issue_by_display_id`
 - `get_issue_detail`
+- `list_issue_attachments`
+- `list_issue_code_links`
+- `create_issue_branch`
+- `list_issue_transitions`
+- `preview_issue_transition`
+- `execute_issue_transition`
 - `list_issue_activity`
 
 ## MCP Resources
@@ -99,7 +111,7 @@ metadata is cached per credential set for five minutes.
 
 ## Current scope
 
-v1 is read-only and prioritizes:
+v1 is primarily read-oriented and prioritizes:
 
 - direct issue lookup by display ID like `DEMO-1234`
 - browsing issues through saved workbench views
@@ -110,10 +122,56 @@ field-definition metadata, and raw activity payloads remain internal. Call
 `list_issue_activity` only when the issue history is needed; it returns paged,
 readable change entries.
 
+Call `list_issue_attachments` when a design document or other file is needed. It
+returns attachment metadata plus a temporary signed download URL (normally valid
+for about one hour). Follow `page_info.next_cursor` while `has_next_page` is true,
+and request the tool again to refresh an expired URL.
+
+`list_issue_code_links` returns linked repositories (including `repo_uuid`),
+branches, commits, and pull requests. Pass the returned repository UUID to
+`create_issue_branch`.
+`create_issue_branch` creates a branch through ONES for the selected linked
+repository, using the supplied source and target branch names.
+
+Status changes use a generic discovery/preview/execute flow. Call
+`list_issue_transitions` first, then preview the selected transition with its
+semantic worklog/test-scope values and any custom `field_values`; execute only
+after the preview reports `valid: true`. The service revalidates the transition,
+field permissions, required fields, and asynchronous result before writing.
+
+The branch HTTP request body is:
+
+```json
+{
+  "repo_uuid": "...",
+  "source_branch": "prod",
+  "target_branch": "feature/DEMO-1234"
+}
+```
+
+The transition preview and execute HTTP request body is:
+
+```json
+{
+  "transition_uuid": "transition-demo-001",
+  "worklog": {
+    "hours": 6.0,
+    "description": "完成接口改造并补充异常处理",
+    "start_at": "2026-07-14T09:00:00Z"
+  },
+  "test_scope": "覆盖主流程和异常分支",
+  "field_values": [{
+    "field_uuid": "field-demo-text",
+    "value": "已完成接口回归"
+  }]
+}
+```
+
 Issue lists, details, and activity redact structured user identities by default.
 Pass `redact=false` to the MCP tool or HTTP query to preserve names supplied by
 ONES. This only disables this service's redaction; upstream `[[RDX:...]]` values
 cannot be restored. Aliases are stable within one process, but may change after
 a restart.
 
-Keyword search and write operations are intentionally out of scope for this version.
+Keyword search and write operations beyond branch creation and the explicit
+transition flow are intentionally out of scope for this version.

@@ -107,6 +107,9 @@ pub struct IssueFieldDefinition {
     #[serde(rename = "type")]
     pub field_type: Option<IssueFieldType>,
     pub setting: Option<IssueFieldSetting>,
+    pub required: Option<bool>,
+    pub visible: Option<bool>,
+    pub hidden: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

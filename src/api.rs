@@ -1,8 +1,11 @@
+use crate::attachments::IssueAttachmentPage;
+use crate::code::{CreateBranchResult, IssueCodeLinks};
 use crate::models::{
     IssueActivityPage, IssueDetail, IssueListItem, PageInfo, WorkbenchIssueGroup,
     WorkbenchViewDetail, WorkbenchViewSummary,
 };
 use crate::ones::field_catalog::FieldDefinition;
+use crate::workflow::IssueTransitionsResponse;
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -38,3 +41,11 @@ pub struct FieldsResponse {
 }
 
 pub type ActivityResponse = IssueActivityPage;
+
+pub type AttachmentsResponse = IssueAttachmentPage;
+
+pub type CodeLinksResponse = IssueCodeLinks;
+
+pub type CreateBranchResponse = CreateBranchResult;
+
+pub type TransitionsResponse = IssueTransitionsResponse;

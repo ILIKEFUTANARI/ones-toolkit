@@ -1,7 +1,9 @@
 use crate::api::{
-    ActivityResponse, GroupsResponse, IssueResponse, ViewResponse, ViewsResponse,
-    WorkbenchIssuePage,
+    ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse, GroupsResponse,
+    IssueResponse, TransitionsResponse, ViewResponse, ViewsResponse, WorkbenchIssuePage,
 };
+use crate::code::CreateBranchInput;
+use crate::workflow::{TransitionExecutionResponse, TransitionPreviewResponse, TransitionValues};
 use serde_json::{Map, Value, json};
 
 pub fn document() -> Value {
@@ -43,6 +45,42 @@ pub fn document() -> Value {
                     redact_parameter(),
                 ])
             },
+            "/api/issues/{issue_uuid}/attachments": {
+                "get": operation("AttachmentsResponse", vec![
+                    path_parameter("issue_uuid"),
+                    query_parameter("cursor", "string", false),
+                ])
+            },
+            "/api/issues/{issue_uuid}/code-links": {
+                "get": operation("CodeLinksResponse", vec![
+                    path_parameter("issue_uuid"),
+                    redact_parameter(),
+                ])
+            },
+            "/api/issues/{issue_uuid}/branches": {
+                "post": operation_with_body(
+                    "CreateBranchResponse",
+                    vec![path_parameter("issue_uuid")],
+                    schema_ref("CreateBranchInput")
+                )
+            },
+            "/api/issues/{issue_uuid}/transitions": {
+                "get": operation("TransitionsResponse", vec![path_parameter("issue_uuid")])
+            },
+            "/api/issues/{issue_uuid}/transition-preview": {
+                "post": operation_with_body(
+                    "TransitionPreviewResponse",
+                    vec![path_parameter("issue_uuid")],
+                    schema_ref("TransitionValues")
+                )
+            },
+            "/api/issues/{issue_uuid}/transition": {
+                "post": operation_with_body(
+                    "TransitionExecutionResponse",
+                    vec![path_parameter("issue_uuid")],
+                    schema_ref("TransitionValues")
+                )
+            },
             "/api/issues/{issue_uuid}/activity": {
                 "get": operation("ActivityResponse", vec![
                     path_parameter("issue_uuid"),
@@ -76,6 +114,17 @@ fn operation(schema: &str, parameters: Vec<Value>) -> Value {
             }
         }
     })
+}
+
+fn operation_with_body(schema: &str, parameters: Vec<Value>, body_schema: Value) -> Value {
+    let mut operation = operation(schema, parameters);
+    operation["requestBody"] = json!({
+        "required": true,
+        "content": {
+            "application/json": {"schema": body_schema}
+        }
+    });
+    operation
 }
 
 fn path_parameter(name: &str) -> Value {
@@ -119,8 +168,20 @@ fn response_schemas() -> Value {
     insert_schema::<GroupsResponse>(&mut schemas, "GroupsResponse");
     insert_schema::<WorkbenchIssuePage>(&mut schemas, "WorkbenchIssuePage");
     insert_schema::<IssueResponse>(&mut schemas, "IssueResponse");
+    insert_schema::<AttachmentsResponse>(&mut schemas, "AttachmentsResponse");
+    insert_schema::<CodeLinksResponse>(&mut schemas, "CodeLinksResponse");
+    insert_schema::<CreateBranchResponse>(&mut schemas, "CreateBranchResponse");
+    insert_schema::<CreateBranchInput>(&mut schemas, "CreateBranchInput");
+    insert_schema::<TransitionValues>(&mut schemas, "TransitionValues");
+    insert_schema::<TransitionsResponse>(&mut schemas, "TransitionsResponse");
+    insert_schema::<TransitionPreviewResponse>(&mut schemas, "TransitionPreviewResponse");
+    insert_schema::<TransitionExecutionResponse>(&mut schemas, "TransitionExecutionResponse");
     insert_schema::<ActivityResponse>(&mut schemas, "ActivityResponse");
     Value::Object(schemas)
+}
+
+fn schema_ref(name: &str) -> Value {
+    json!({ "$ref": format!("#/components/schemas/{name}") })
 }
 
 fn insert_schema<T: schemars::JsonSchema>(schemas: &mut Map<String, Value>, name: &str) {

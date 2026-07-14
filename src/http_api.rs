@@ -1,9 +1,11 @@
 use crate::{
     api::{
-        ActivityResponse, GroupsResponse, IssueResponse, ViewResponse, ViewsResponse,
-        WorkbenchIssuePage,
+        ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse,
+        GroupsResponse, IssueResponse, ViewResponse, ViewsResponse, WorkbenchIssuePage,
     },
+    code::CreateBranchInput,
     error::{AppError, AppResult},
+    http_workflow,
     mcp::{McpAuthMode, build_mcp_service},
     models::AuthContext,
     ones::service::OnesService,
@@ -12,7 +14,7 @@ use axum::{
     Json, Router,
     extract::{Path, Query, State},
     http::HeaderMap,
-    routing::get,
+    routing::{get, post},
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -42,6 +44,30 @@ pub fn build_http_app(
             get(get_issue_by_display_id),
         )
         .route("/api/issues/{issue_uuid}", get(get_issue))
+        .route(
+            "/api/issues/{issue_uuid}/attachments",
+            get(list_issue_attachments),
+        )
+        .route(
+            "/api/issues/{issue_uuid}/code-links",
+            get(list_issue_code_links),
+        )
+        .route(
+            "/api/issues/{issue_uuid}/branches",
+            post(create_issue_branch),
+        )
+        .route(
+            "/api/issues/{issue_uuid}/transitions",
+            get(http_workflow::list_issue_transitions),
+        )
+        .route(
+            "/api/issues/{issue_uuid}/transition-preview",
+            post(http_workflow::preview_issue_transition),
+        )
+        .route(
+            "/api/issues/{issue_uuid}/transition",
+            post(http_workflow::execute_issue_transition),
+        )
         .route(
             "/api/issues/{issue_uuid}/activity",
             get(list_issue_activity),
@@ -140,6 +166,48 @@ async fn get_issue(
     Ok(Json(IssueResponse { issue }))
 }
 
+async fn list_issue_attachments(
+    State(state): State<HttpState>,
+    Path(issue_uuid): Path<String>,
+    Query(query): Query<AttachmentQuery>,
+    headers: HeaderMap,
+) -> AppResult<Json<AttachmentsResponse>> {
+    let auth = auth_from_headers(&headers)?;
+    let attachments = state
+        .service
+        .list_issue_attachments(&auth, &issue_uuid, query.cursor.as_deref())
+        .await?;
+    Ok(Json(attachments))
+}
+
+async fn list_issue_code_links(
+    State(state): State<HttpState>,
+    Path(issue_uuid): Path<String>,
+    Query(query): Query<RedactQuery>,
+    headers: HeaderMap,
+) -> AppResult<Json<CodeLinksResponse>> {
+    let auth = auth_from_headers(&headers)?;
+    let links = state
+        .service
+        .list_issue_code_links(&auth, &issue_uuid, query.enabled())
+        .await?;
+    Ok(Json(links))
+}
+
+async fn create_issue_branch(
+    State(state): State<HttpState>,
+    Path(issue_uuid): Path<String>,
+    headers: HeaderMap,
+    Json(input): Json<CreateBranchInput>,
+) -> AppResult<Json<CreateBranchResponse>> {
+    let auth = auth_from_headers(&headers)?;
+    let result = state
+        .service
+        .create_issue_branch(&auth, &issue_uuid, &input)
+        .await?;
+    Ok(Json(result))
+}
+
 async fn list_issue_activity(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -167,6 +235,11 @@ async fn openapi() -> Json<serde_json::Value> {
 #[derive(Debug, Deserialize)]
 struct RedactQuery {
     redact: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+struct AttachmentQuery {
+    cursor: Option<String>,
 }
 
 impl RedactQuery {
