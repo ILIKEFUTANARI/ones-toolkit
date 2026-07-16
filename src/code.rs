@@ -1,14 +1,15 @@
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct CreateBranchInput {
     pub repo_uuid: String,
     pub source_branch: String,
     pub target_branch: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct CreateBranchResult {
     pub issue_uuid: String,
     pub source_branch: String,
@@ -16,7 +17,7 @@ pub struct CreateBranchResult {
     pub created: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssueCodeLinks {
     pub repositories: Vec<CodeRepository>,
     pub branches: Vec<CodeBranch>,
@@ -24,7 +25,7 @@ pub struct IssueCodeLinks {
     pub pull_requests: Vec<CodePullRequest>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct CodeRepository {
     pub uuid: String,
     pub name: String,
@@ -34,7 +35,7 @@ pub struct CodeRepository {
     pub is_public: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct CodeBranch {
     pub uuid: String,
     pub name: String,
@@ -44,7 +45,7 @@ pub struct CodeBranch {
     pub url: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct CodeCommit {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -61,7 +62,7 @@ pub struct CodeCommit {
     pub author: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct CodePullRequest {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]

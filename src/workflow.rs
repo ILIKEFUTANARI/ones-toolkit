@@ -1,16 +1,17 @@
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use utoipa::ToSchema;
 
 use crate::models::StatusSummary;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct TransitionFieldValue {
     pub field_uuid: String,
     pub value: Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct WorklogInput {
     pub hours: f64,
     pub description: String,
@@ -18,7 +19,7 @@ pub struct WorklogInput {
     pub start_at: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct TransitionValues {
     pub transition_uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -29,7 +30,7 @@ pub struct TransitionValues {
     pub field_values: Vec<TransitionFieldValue>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct TransitionSummary {
     pub uuid: String,
     pub name: String,
@@ -38,7 +39,7 @@ pub struct TransitionSummary {
     pub fields: Vec<TransitionField>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct TransitionField {
     pub uuid: String,
     pub name: String,
@@ -53,13 +54,13 @@ pub struct TransitionField {
     pub semantic: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssueTransitionsResponse {
     pub issue_uuid: String,
     pub transitions: Vec<TransitionSummary>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct TransitionPreviewResponse {
     pub issue_uuid: String,
     pub transition: TransitionSummary,
@@ -70,7 +71,7 @@ pub struct TransitionPreviewResponse {
     pub validation_errors: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct TransitionExecutionResponse {
     pub issue_uuid: String,
     pub transition_uuid: String,

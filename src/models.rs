@@ -1,5 +1,6 @@
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AuthContext {
@@ -7,13 +8,13 @@ pub struct AuthContext {
     pub password: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct WorkbenchViewSummary {
     pub uuid: String,
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct WorkbenchViewDetail {
     pub uuid: String,
     pub name: String,
@@ -29,7 +30,7 @@ pub(crate) struct SortField {
     pub order: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct WorkbenchIssueGroup {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
@@ -39,7 +40,7 @@ pub struct WorkbenchIssueGroup {
     pub hierarchy_count: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, ToSchema)]
 pub struct PageInfo {
     pub has_next_page: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -54,14 +55,14 @@ pub(crate) struct IssueLookupResult {
     pub display_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct StatusSummary {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssueListItem {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -84,13 +85,13 @@ pub struct IssueListItem {
     pub downstream_task_done_count: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct DisplayField {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct RelatedWikiPage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -98,13 +99,13 @@ pub struct RelatedWikiPage {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct RelatedCase {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssueDetail {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,7 +146,7 @@ pub struct IssueDetail {
     pub related_cases: Option<Vec<RelatedCase>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssueActivityEntry {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub entry_type: Option<String>,
@@ -165,7 +166,7 @@ pub struct IssueActivityEntry {
     pub new_value: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssueActivityPage {
     pub activity: Vec<IssueActivityEntry>,
     pub page_info: PageInfo,

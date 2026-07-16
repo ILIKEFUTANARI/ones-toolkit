@@ -1,225 +1,66 @@
-use crate::api::{
-    ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse, GroupsResponse,
-    IssueResponse, TransitionsResponse, ViewResponse, ViewsResponse, WorkbenchIssuePage,
-};
-use crate::code::CreateBranchInput;
-use crate::workflow::{TransitionExecutionResponse, TransitionPreviewResponse, TransitionValues};
-use serde_json::{Map, Value, json};
+use serde_json::Value;
+use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityRequirement, SecurityScheme};
 
 pub fn document() -> Value {
-    json!({
-        "openapi": "3.1.0",
-        "info": {
-            "title": "ONES Issue Wrapper",
-            "version": env!("CARGO_PKG_VERSION"),
-        },
-        "security": [{ "onesEmail": [], "onesPassword": [] }],
-        "paths": {
-            "/api/workbench/views": {
-                "get": operation("ViewsResponse", vec![])
-            },
-            "/api/workbench/views/{view_uuid}": {
-                "get": operation("ViewResponse", vec![path_parameter("view_uuid")])
-            },
-            "/api/workbench/views/{view_uuid}/groups": {
-                "get": operation("GroupsResponse", vec![path_parameter("view_uuid")])
-            },
-            "/api/workbench/views/{view_uuid}/issues": {
-                "get": operation("WorkbenchIssuePage", vec![
-                    path_parameter("view_uuid"),
-                    query_parameter("group_value", "string", false),
-                    query_parameter("cursor", "string", false),
-                    query_parameter("limit", "integer", false),
-                    redact_parameter(),
-                ])
-            },
-            "/api/issues/by-display-id/{display_id}": {
-                "get": operation("IssueResponse", vec![
-                    path_parameter("display_id"),
-                    redact_parameter(),
-                ])
-            },
-            "/api/issues/{issue_uuid}": {
-                "get": operation("IssueResponse", vec![
-                    path_parameter("issue_uuid"),
-                    redact_parameter(),
-                ])
-            },
-            "/api/issues/{issue_uuid}/attachments": {
-                "get": operation("AttachmentsResponse", vec![
-                    path_parameter("issue_uuid"),
-                    query_parameter("cursor", "string", false),
-                ])
-            },
-            "/api/issues/{issue_uuid}/code-links": {
-                "get": operation("CodeLinksResponse", vec![
-                    path_parameter("issue_uuid"),
-                    redact_parameter(),
-                ])
-            },
-            "/api/issues/{issue_uuid}/branches": {
-                "post": operation_with_body(
-                    "CreateBranchResponse",
-                    vec![path_parameter("issue_uuid")],
-                    schema_ref("CreateBranchInput")
-                )
-            },
-            "/api/issues/{issue_uuid}/transitions": {
-                "get": operation("TransitionsResponse", vec![path_parameter("issue_uuid")])
-            },
-            "/api/issues/{issue_uuid}/transition-preview": {
-                "post": operation_with_body(
-                    "TransitionPreviewResponse",
-                    vec![path_parameter("issue_uuid")],
-                    schema_ref("TransitionValues")
-                )
-            },
-            "/api/issues/{issue_uuid}/transition": {
-                "post": operation_with_body(
-                    "TransitionExecutionResponse",
-                    vec![path_parameter("issue_uuid")],
-                    schema_ref("TransitionValues")
-                )
-            },
-            "/api/issues/{issue_uuid}/activity": {
-                "get": operation("ActivityResponse", vec![
-                    path_parameter("issue_uuid"),
-                    query_parameter("cursor", "string", false),
-                    query_parameter("limit", "integer", false),
-                    redact_parameter(),
-                ])
-            }
-        },
-        "components": {
-            "securitySchemes": {
-                "onesEmail": header_auth("x-ones-email"),
-                "onesPassword": header_auth("x-ones-password"),
-            },
-            "schemas": response_schemas(),
+    let mut openapi = crate::http_api::build_api_router().into_openapi();
+    finalize(&mut openapi);
+    serde_json::to_value(openapi).expect("OpenAPI should serialize")
+}
+
+pub(crate) fn finalize(openapi: &mut utoipa::openapi::OpenApi) {
+    openapi.info.title = "ONES Issue Wrapper".to_string();
+    openapi.info.version = env!("CARGO_PKG_VERSION").to_string();
+
+    let components = openapi.components.get_or_insert_with(Default::default);
+    components.add_security_scheme(
+        "onesEmail",
+        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("x-ones-email"))),
+    );
+    components.add_security_scheme(
+        "onesPassword",
+        SecurityScheme::ApiKey(ApiKey::Header(ApiKeyValue::new("x-ones-password"))),
+    );
+    openapi.security = Some(vec![
+        SecurityRequirement::new("onesEmail", std::iter::empty::<&str>())
+            .add("onesPassword", std::iter::empty::<&str>()),
+    ]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::document;
+
+    #[test]
+    fn documents_all_http_capabilities() {
+        let document = document();
+        let paths = document["paths"].as_object().unwrap();
+        let expected = [
+            "/api/workbench/views",
+            "/api/workbench/views/{view_uuid}",
+            "/api/workbench/views/{view_uuid}/groups",
+            "/api/workbench/views/{view_uuid}/issues",
+            "/api/issues/by-display-id/{display_id}",
+            "/api/issues/{issue_uuid}",
+            "/api/issues/{issue_uuid}/attachments",
+            "/api/issues/{issue_uuid}/code-links",
+            "/api/issues/{issue_uuid}/branches",
+            "/api/issues/{issue_uuid}/transitions",
+            "/api/issues/{issue_uuid}/transition-preview",
+            "/api/issues/{issue_uuid}/transition",
+            "/api/issues/{issue_uuid}/activity",
+        ];
+
+        assert_eq!(paths.len(), expected.len());
+        for path in expected {
+            assert!(paths.contains_key(path), "missing OpenAPI path {path}");
         }
-    })
-}
-
-fn operation(schema: &str, parameters: Vec<Value>) -> Value {
-    json!({
-        "parameters": parameters,
-        "responses": {
-            "200": {
-                "description": "Successful response",
-                "content": {
-                    "application/json": {
-                        "schema": { "$ref": format!("#/components/schemas/{schema}") }
-                    }
-                }
-            }
-        }
-    })
-}
-
-fn operation_with_body(schema: &str, parameters: Vec<Value>, body_schema: Value) -> Value {
-    let mut operation = operation(schema, parameters);
-    operation["requestBody"] = json!({
-        "required": true,
-        "content": {
-            "application/json": {"schema": body_schema}
-        }
-    });
-    operation
-}
-
-fn path_parameter(name: &str) -> Value {
-    query_parameter(name, "string", true)
-        .as_object()
-        .cloned()
-        .map(|mut parameter| {
-            parameter.insert("in".to_string(), json!("path"));
-            Value::Object(parameter)
-        })
-        .unwrap_or(Value::Null)
-}
-
-fn query_parameter(name: &str, schema_type: &str, required: bool) -> Value {
-    json!({
-        "name": name,
-        "in": "query",
-        "required": required,
-        "schema": { "type": schema_type }
-    })
-}
-
-fn redact_parameter() -> Value {
-    json!({
-        "name": "redact",
-        "in": "query",
-        "required": false,
-        "schema": { "type": "boolean", "default": true },
-        "description": "Redact structured user identities; defaults to true"
-    })
-}
-
-fn header_auth(name: &str) -> Value {
-    json!({ "type": "apiKey", "in": "header", "name": name })
-}
-
-fn response_schemas() -> Value {
-    let mut schemas = Map::new();
-    insert_schema::<ViewsResponse>(&mut schemas, "ViewsResponse");
-    insert_schema::<ViewResponse>(&mut schemas, "ViewResponse");
-    insert_schema::<GroupsResponse>(&mut schemas, "GroupsResponse");
-    insert_schema::<WorkbenchIssuePage>(&mut schemas, "WorkbenchIssuePage");
-    insert_schema::<IssueResponse>(&mut schemas, "IssueResponse");
-    insert_schema::<AttachmentsResponse>(&mut schemas, "AttachmentsResponse");
-    insert_schema::<CodeLinksResponse>(&mut schemas, "CodeLinksResponse");
-    insert_schema::<CreateBranchResponse>(&mut schemas, "CreateBranchResponse");
-    insert_schema::<CreateBranchInput>(&mut schemas, "CreateBranchInput");
-    insert_schema::<TransitionValues>(&mut schemas, "TransitionValues");
-    insert_schema::<TransitionsResponse>(&mut schemas, "TransitionsResponse");
-    insert_schema::<TransitionPreviewResponse>(&mut schemas, "TransitionPreviewResponse");
-    insert_schema::<TransitionExecutionResponse>(&mut schemas, "TransitionExecutionResponse");
-    insert_schema::<ActivityResponse>(&mut schemas, "ActivityResponse");
-    Value::Object(schemas)
-}
-
-fn schema_ref(name: &str) -> Value {
-    json!({ "$ref": format!("#/components/schemas/{name}") })
-}
-
-fn insert_schema<T: schemars::JsonSchema>(schemas: &mut Map<String, Value>, name: &str) {
-    let schema = schemars::schema_for!(T);
-    let mut schema = serde_json::to_value(schema).unwrap();
-    let definitions = schema
-        .as_object_mut()
-        .and_then(|schema| schema.remove("$defs"))
-        .and_then(|definitions| definitions.as_object().cloned())
-        .unwrap_or_default();
-    rewrite_definition_refs(&mut schema);
-    schemas.insert(name.to_string(), schema);
-    for (definition_name, mut definition) in definitions {
-        rewrite_definition_refs(&mut definition);
-        schemas.entry(definition_name).or_insert(definition);
-    }
-}
-
-fn rewrite_definition_refs(value: &mut Value) {
-    match value {
-        Value::Object(object) => {
-            let rewritten_reference = object
-                .get("$ref")
-                .and_then(Value::as_str)
-                .and_then(|reference| reference.strip_prefix("#/$defs/"))
-                .map(|name| format!("#/components/schemas/{name}"));
-            if let Some(reference) = rewritten_reference {
-                object.insert("$ref".to_string(), Value::String(reference));
-            }
-            for nested in object.values_mut() {
-                rewrite_definition_refs(nested);
-            }
-        }
-        Value::Array(values) => {
-            for nested in values {
-                rewrite_definition_refs(nested);
-            }
-        }
-        _ => {}
+        assert_eq!(
+            document["components"]["securitySchemes"]["onesEmail"]["name"],
+            "x-ones-email"
+        );
+        assert_eq!(
+            document["components"]["securitySchemes"]["onesPassword"]["name"],
+            "x-ones-password"
+        );
     }
 }

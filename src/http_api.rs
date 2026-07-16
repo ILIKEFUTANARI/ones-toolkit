@@ -14,14 +14,16 @@ use axum::{
     Json, Router,
     extract::{Path, Query, State},
     http::HeaderMap,
-    routing::{get, post},
+    routing::get,
 };
 use serde::Deserialize;
 use std::sync::Arc;
+use utoipa_axum::{router::OpenApiRouter, routes};
 
 #[derive(Clone)]
 pub struct HttpState {
     pub service: Arc<OnesService>,
+    pub openapi: Arc<serde_json::Value>,
 }
 
 pub fn build_http_app(
@@ -29,54 +31,42 @@ pub fn build_http_app(
     mcp_auth_mode: McpAuthMode,
     mcp_path: String,
 ) -> Router {
+    let mcp_service = build_mcp_service(service.clone(), mcp_auth_mode);
+    let (router, mut document) = build_api_router().split_for_parts();
+    crate::openapi::finalize(&mut document);
     let state = HttpState {
-        service: service.clone(),
+        service,
+        openapi: Arc::new(serde_json::to_value(document).expect("OpenAPI should serialize")),
     };
-    let mcp_service = build_mcp_service(service, mcp_auth_mode);
 
-    Router::new()
-        .route("/api/workbench/views", get(list_views))
-        .route("/api/workbench/views/{view_uuid}", get(get_view))
-        .route("/api/workbench/views/{view_uuid}/groups", get(list_groups))
-        .route("/api/workbench/views/{view_uuid}/issues", get(list_issues))
-        .route(
-            "/api/issues/by-display-id/{display_id}",
-            get(get_issue_by_display_id),
-        )
-        .route("/api/issues/{issue_uuid}", get(get_issue))
-        .route(
-            "/api/issues/{issue_uuid}/attachments",
-            get(list_issue_attachments),
-        )
-        .route(
-            "/api/issues/{issue_uuid}/code-links",
-            get(list_issue_code_links),
-        )
-        .route(
-            "/api/issues/{issue_uuid}/branches",
-            post(create_issue_branch),
-        )
-        .route(
-            "/api/issues/{issue_uuid}/transitions",
-            get(http_workflow::list_issue_transitions),
-        )
-        .route(
-            "/api/issues/{issue_uuid}/transition-preview",
-            post(http_workflow::preview_issue_transition),
-        )
-        .route(
-            "/api/issues/{issue_uuid}/transition",
-            post(http_workflow::execute_issue_transition),
-        )
-        .route(
-            "/api/issues/{issue_uuid}/activity",
-            get(list_issue_activity),
-        )
+    router
         .route("/openapi.json", get(openapi))
         .with_state(state)
         .nest_service(&mcp_path, mcp_service)
 }
 
+pub(crate) fn build_api_router() -> OpenApiRouter<HttpState> {
+    OpenApiRouter::new()
+        .routes(routes!(list_views))
+        .routes(routes!(get_view))
+        .routes(routes!(list_groups))
+        .routes(routes!(list_issues))
+        .routes(routes!(get_issue_by_display_id))
+        .routes(routes!(get_issue))
+        .routes(routes!(list_issue_attachments))
+        .routes(routes!(list_issue_code_links))
+        .routes(routes!(create_issue_branch))
+        .routes(routes!(http_workflow::list_issue_transitions))
+        .routes(routes!(http_workflow::preview_issue_transition))
+        .routes(routes!(http_workflow::execute_issue_transition))
+        .routes(routes!(list_issue_activity))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/workbench/views",
+    responses((status = 200, body = ViewsResponse))
+)]
 async fn list_views(
     State(state): State<HttpState>,
     headers: HeaderMap,
@@ -86,6 +76,12 @@ async fn list_views(
     Ok(Json(ViewsResponse { views }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/workbench/views/{view_uuid}",
+    params(("view_uuid" = String, Path)),
+    responses((status = 200, body = ViewResponse))
+)]
 async fn get_view(
     State(state): State<HttpState>,
     Path(view_uuid): Path<String>,
@@ -96,6 +92,12 @@ async fn get_view(
     Ok(Json(ViewResponse { view }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/workbench/views/{view_uuid}/groups",
+    params(("view_uuid" = String, Path)),
+    responses((status = 200, body = GroupsResponse))
+)]
 async fn list_groups(
     State(state): State<HttpState>,
     Path(view_uuid): Path<String>,
@@ -117,6 +119,18 @@ struct ListIssuesQuery {
     redact: Option<bool>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/workbench/views/{view_uuid}/issues",
+    params(
+        ("view_uuid" = String, Path),
+        ("group_value" = Option<String>, Query),
+        ("cursor" = Option<String>, Query),
+        ("limit" = Option<u32>, Query),
+        ("redact" = Option<bool>, Query)
+    ),
+    responses((status = 200, body = WorkbenchIssuePage))
+)]
 async fn list_issues(
     State(state): State<HttpState>,
     Path(view_uuid): Path<String>,
@@ -138,6 +152,15 @@ async fn list_issues(
     Ok(Json(page))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/issues/by-display-id/{display_id}",
+    params(
+        ("display_id" = String, Path),
+        ("redact" = Option<bool>, Query)
+    ),
+    responses((status = 200, body = IssueResponse))
+)]
 async fn get_issue_by_display_id(
     State(state): State<HttpState>,
     Path(display_id): Path<String>,
@@ -152,6 +175,15 @@ async fn get_issue_by_display_id(
     Ok(Json(IssueResponse { issue }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/issues/{issue_uuid}",
+    params(
+        ("issue_uuid" = String, Path),
+        ("redact" = Option<bool>, Query)
+    ),
+    responses((status = 200, body = IssueResponse))
+)]
 async fn get_issue(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -166,6 +198,15 @@ async fn get_issue(
     Ok(Json(IssueResponse { issue }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/issues/{issue_uuid}/attachments",
+    params(
+        ("issue_uuid" = String, Path),
+        ("cursor" = Option<String>, Query)
+    ),
+    responses((status = 200, body = AttachmentsResponse))
+)]
 async fn list_issue_attachments(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -180,6 +221,15 @@ async fn list_issue_attachments(
     Ok(Json(attachments))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/issues/{issue_uuid}/code-links",
+    params(
+        ("issue_uuid" = String, Path),
+        ("redact" = Option<bool>, Query)
+    ),
+    responses((status = 200, body = CodeLinksResponse))
+)]
 async fn list_issue_code_links(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -194,6 +244,13 @@ async fn list_issue_code_links(
     Ok(Json(links))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/issues/{issue_uuid}/branches",
+    params(("issue_uuid" = String, Path)),
+    request_body = CreateBranchInput,
+    responses((status = 200, body = CreateBranchResponse))
+)]
 async fn create_issue_branch(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -208,6 +265,17 @@ async fn create_issue_branch(
     Ok(Json(result))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/issues/{issue_uuid}/activity",
+    params(
+        ("issue_uuid" = String, Path),
+        ("cursor" = Option<String>, Query),
+        ("limit" = Option<u32>, Query),
+        ("redact" = Option<bool>, Query)
+    ),
+    responses((status = 200, body = ActivityResponse))
+)]
 async fn list_issue_activity(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -228,8 +296,8 @@ async fn list_issue_activity(
     Ok(Json(activity))
 }
 
-async fn openapi() -> Json<serde_json::Value> {
-    Json(crate::openapi::document())
+async fn openapi(State(state): State<HttpState>) -> Json<serde_json::Value> {
+    Json((*state.openapi).clone())
 }
 
 #[derive(Debug, Deserialize)]

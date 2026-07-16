@@ -21,6 +21,11 @@ Required for `stdio` MCP:
 - `ONES_EMAIL`
 - `ONES_PASSWORD`
 
+Required for business CLI commands:
+
+- `ONES_EMAIL`
+- `ONES_PASSWORD`
+
 ## Run
 
 HTTP JSON API plus HTTP MCP:
@@ -42,6 +47,21 @@ stdio MCP:
 ```bash
 ONES_EMAIL=alex@example.test ONES_PASSWORD=dummy-password cargo run -- stdio
 ```
+
+CLI examples:
+
+```bash
+cargo run -- view list
+cargo run -- get DEMO-1234
+cargo run -- attachments issue-demo-001
+cargo run -- issue transition-preview issue-demo-001 --input transition.json
+cargo run -- --json issue get issue-demo-001
+```
+
+The CLI prints compact tables for list commands and readable JSON for detail
+commands. Pass `--json` for machine-readable output. Transition input accepts a
+file path or `-` for stdin. `ones openapi` prints the same generated document
+served by `/openapi.json`.
 
 ## GitHub Release
 
@@ -108,6 +128,22 @@ type, reference type, and filter/sort/group capabilities. Core response fields
 such as title, status, project, and assignee are resolved by the service from the
 team catalog; callers and AI clients do not select those mappings. Team field
 metadata is cached per credential set for five minutes.
+
+## CLI Commands
+
+Canonical command groups:
+
+- `view list|get|groups|issues`
+- `issue get|get-by-display-id|attachments|code-links|activity|transitions`
+- `issue branch`
+- `issue transition-preview|transition`
+
+Shortcuts for common operations:
+
+- `get <display_id>`
+- `issues <view_uuid>`
+- `attachments <issue_uuid>`
+- `activity <issue_uuid>`
 
 ## Current scope
 

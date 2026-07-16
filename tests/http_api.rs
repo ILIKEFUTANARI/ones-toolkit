@@ -309,6 +309,29 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
         .json()
         .await
         .unwrap();
+    let expected_paths = [
+        "/api/workbench/views",
+        "/api/workbench/views/{view_uuid}",
+        "/api/workbench/views/{view_uuid}/groups",
+        "/api/workbench/views/{view_uuid}/issues",
+        "/api/issues/by-display-id/{display_id}",
+        "/api/issues/{issue_uuid}",
+        "/api/issues/{issue_uuid}/attachments",
+        "/api/issues/{issue_uuid}/code-links",
+        "/api/issues/{issue_uuid}/branches",
+        "/api/issues/{issue_uuid}/transitions",
+        "/api/issues/{issue_uuid}/transition-preview",
+        "/api/issues/{issue_uuid}/transition",
+        "/api/issues/{issue_uuid}/activity",
+    ];
+    let paths = openapi["paths"].as_object().unwrap();
+    assert_eq!(paths.len(), expected_paths.len());
+    for path in expected_paths {
+        assert!(
+            paths.contains_key(path),
+            "missing HTTP path in OpenAPI: {path}"
+        );
+    }
     assert!(
         openapi["paths"]["/api/issues/{issue_uuid}/transition-preview"]["post"]["requestBody"]["content"]
             ["application/json"]["schema"]["$ref"]

@@ -4,6 +4,7 @@ use crate::{
 };
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
 pub struct FieldCatalog {
@@ -93,7 +94,7 @@ impl CoreFields {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct FieldDefinition {
     pub uuid: String,
     pub name: String,

@@ -12,6 +12,12 @@ use axum::{
     http::HeaderMap,
 };
 
+#[utoipa::path(
+    get,
+    path = "/api/issues/{issue_uuid}/transitions",
+    params(("issue_uuid" = String, Path)),
+    responses((status = 200, body = IssueTransitionsResponse))
+)]
 pub(crate) async fn list_issue_transitions(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -25,6 +31,13 @@ pub(crate) async fn list_issue_transitions(
     Ok(Json(result))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/issues/{issue_uuid}/transition-preview",
+    params(("issue_uuid" = String, Path)),
+    request_body = TransitionValues,
+    responses((status = 200, body = TransitionPreviewResponse))
+)]
 pub(crate) async fn preview_issue_transition(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
@@ -39,6 +52,13 @@ pub(crate) async fn preview_issue_transition(
     Ok(Json(result))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/issues/{issue_uuid}/transition",
+    params(("issue_uuid" = String, Path)),
+    request_body = TransitionValues,
+    responses((status = 200, body = TransitionExecutionResponse))
+)]
 pub(crate) async fn execute_issue_transition(
     State(state): State<HttpState>,
     Path(issue_uuid): Path<String>,
