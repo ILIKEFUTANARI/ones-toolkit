@@ -25,10 +25,10 @@ impl ServerHandler for OnesMcpServer {
                 .build(),
         )
         .with_instructions(
-            "ONES issue wrapper exposing workbench views, issue details, attachments, code links, field metadata, and explicit writes. For status changes, discover with list_issue_transitions, preview with preview_issue_transition, and execute only after valid=true; the service revalidates all fields and permissions before writing.",
+            "ONES Toolkit is an unofficial third-party integration exposing workbench views, issue details, attachments, code links, field metadata, and explicit writes. It is not affiliated with or endorsed by ONES. For status changes, discover with list_issue_transitions, preview with preview_issue_transition, and execute only after valid=true; the service revalidates all fields and permissions before writing.",
         )
         .with_server_info(rmcp::model::Implementation::new(
-            "ones-mcp",
+            "ones-toolkit",
             env!("CARGO_PKG_VERSION"),
         ))
     }

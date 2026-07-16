@@ -8,7 +8,10 @@ pub fn document() -> Value {
 }
 
 pub(crate) fn finalize(openapi: &mut utoipa::openapi::OpenApi) {
-    openapi.info.title = "ONES Issue Wrapper".to_string();
+    openapi.info.title = "ONES Toolkit (Unofficial)".to_string();
+    openapi.info.description = Some(
+        "Unofficial third-party HTTP API for ONES issue management. Independently developed; not affiliated with, sponsored, authorized, or endorsed by ONES or its owners.".to_string(),
+    );
     openapi.info.version = env!("CARGO_PKG_VERSION").to_string();
 
     let components = openapi.components.get_or_insert_with(Default::default);

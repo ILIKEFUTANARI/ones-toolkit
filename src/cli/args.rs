@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 #[command(
     name = "ones",
     version,
-    about = "ONES issue wrapper with HTTP API, MCP, and CLI"
+    about = "ONES Toolkit, an unofficial third-party HTTP, MCP, and CLI integration"
 )]
 pub struct Cli {
     #[arg(long, global = true, help = "Print machine-readable JSON")]

@@ -1,6 +1,11 @@
-# ones
+# ONES Toolkit (Unofficial)
 
-ONES issue wrapper with:
+`ones-toolkit` is an unofficial third-party integration for ONES. It is
+independently developed and is not affiliated with, sponsored, authorized, or
+endorsed by ONES or its owners. ONES is used only to identify the compatible
+product and remains the property of its respective trademark owner.
+
+ONES Toolkit provides:
 
 - HTTP JSON API for humans and scripts
 - MCP over Streamable HTTP

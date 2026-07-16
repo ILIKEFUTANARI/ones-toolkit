@@ -1,14 +1,22 @@
 [package]
-name = "ones"
-version = "0.2.1"
+name = "ones-toolkit"
+version = "0.2.4"
 edition = "2024"
-description = "ONES issue wrapper with HTTP API and MCP endpoints"
+description = "Unofficial third-party HTTP, MCP, and CLI toolkit for ONES issue management"
 license = "MIT"
 readme = "README.md"
 repository = "https://github/cloudiful/ones-mcp"
 homepage = "https://github/cloudiful/ones-mcp"
 documentation = "https://github/cloudiful/ones-mcp/src/branch/main/README.md"
-keywords = ["ones", "mcp", "http", "issue-tracker"]
+keywords = ["ones", "mcp", "cli", "http", "integration"]
+
+[lib]
+name = "ones"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ones"
+path = "src/main.rs"
 
 [dependencies]
 axum = "0.8.9"

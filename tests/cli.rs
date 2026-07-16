@@ -9,7 +9,7 @@ fn openapi_command_prints_generated_document() {
 
     assert!(output.status.success());
     let document: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(document["info"]["title"], "ONES Issue Wrapper");
+    assert_eq!(document["info"]["title"], "ONES Toolkit (Unofficial)");
     assert!(document["paths"]["/api/issues/{issue_uuid}/transition"].is_object());
 }
 
