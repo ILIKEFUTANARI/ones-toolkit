@@ -1,0 +1,5 @@
+mutation DeleteManhour {
+  deleteManhour(key: $key, mode: $mode) {
+    key
+  }
+}

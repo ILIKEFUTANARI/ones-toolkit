@@ -12,100 +12,13 @@ use crate::{
 use reqwest::Method;
 use serde_json::{Value, json};
 
-const ISSUE_MANHOURS_QUERY: &str = r#"
-    query FetchUserManhours {
-      manhours(
-        filter: $manhourFilter
-        orderBy: $manhoursOrderBy
-      ) {
-        key
-        hours
-        startTime(unit: ONESDATE)
-        description
-        type
-        owner {
-          uuid
-          name
-        }
-      }
-    }
-"#;
-
-const ISSUE_SUMMARY_QUERY: &str = r#"
-    query FetchUserManhoursInfo {
-      buckets (
-        groupBy: $groupBy
-        orderBy: $orderBy
-      ) {
-        manhours ( filter: $manhourFilter ) { key }
-        owner {
-          uuid
-          name
-        }
-        actualHours(sum: "manhours.recordedHour")
-        estimatedHours(sum: "manhours.estimatedHour")
-        remainingHour
-      }
-    }
-"#;
-
-const REPORT_QUERY: &str = r#"
-    query QUERY_MANHOURS {
-      buckets(groupBy: $groupBy, orderBy: $orderBy, filter: $filter) {
-        columnField: aggregateTask(source: $columnSource) {
-          uuid
-          name
-          displayId
-          project { uuid }
-        }
-        key
-        actualHours(sum: $actualHoursSum)
-        actualHoursSeries(timeSeries: $timeSeries) {
-          times
-          values
-        }
-      }
-    }
-"#;
-
-const ADD_MANHOUR_MUTATION: &str = r#"
-    mutation AddManhour {
-      addManhour(
-        mode: $mode
-        owner: $owner
-        task: $task
-        type: $type
-        start_time: $start_time
-        hours: $hours
-        description: $description
-        customData: $customData
-      ) { key }
-    }
-"#;
-
-const UPDATE_REMAINING_MUTATION: &str = r#"
-    mutation UpdateRemainingHour {
-      updateRemainingHour(mode: $mode, key: $key, hours: $hours) { key }
-    }
-"#;
-
-const DELETE_MANHOUR_MUTATION: &str = r#"
-    mutation DeleteManhour {
-      deleteManhour(key: $key, mode: $mode) { key }
-    }
-"#;
-
-const PERMISSION_QUERY: &str = r#"
-    query Task($key: Key) {
-      task(key: $key) {
-        project { uuid }
-        hasUpdateOwnAssessManHourPermission(attachPermission: {permissions: ["manage_task_own_assess_manhour"]})
-        hasUpdateAllAssessManHourPermission(attachPermission: {permissions: ["manage_task_assess_manhour"]})
-        hasUpdateOwnManHourPermission(attachPermission: {permissions: ["manage_task_own_record_manhours"]})
-        hasUpdateAllManHourPermission(attachPermission: {permissions: ["manage_task_record_manhours"]})
-      }
-    }
-"#;
+const ISSUE_MANHOURS_QUERY: &str = include_str!("graphql/issue_manhours.graphql");
+const ISSUE_SUMMARY_QUERY: &str = include_str!("graphql/issue_summary.graphql");
+const REPORT_QUERY: &str = include_str!("graphql/work_hour_report.graphql");
+const ADD_MANHOUR_MUTATION: &str = include_str!("graphql/add_manhour.graphql");
+const UPDATE_REMAINING_MUTATION: &str = include_str!("graphql/update_remaining_hour.graphql");
+const DELETE_MANHOUR_MUTATION: &str = include_str!("graphql/delete_manhour.graphql");
+const PERMISSION_QUERY: &str = include_str!("graphql/task_manhour_permissions.graphql");
 
 impl OnesClient {
     pub(crate) async fn issue_manhours(

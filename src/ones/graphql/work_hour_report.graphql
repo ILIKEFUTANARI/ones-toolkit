@@ -1,0 +1,18 @@
+query QUERY_MANHOURS {
+  buckets(groupBy: $groupBy, orderBy: $orderBy, filter: $filter) {
+    columnField: aggregateTask(source: $columnSource) {
+      uuid
+      name
+      displayId
+      project {
+        uuid
+      }
+    }
+    key
+    actualHours(sum: $actualHoursSum)
+    actualHoursSeries(timeSeries: $timeSeries) {
+      times
+      values
+    }
+  }
+}

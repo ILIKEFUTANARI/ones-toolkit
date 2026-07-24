@@ -1,0 +1,13 @@
+query Task($key: Key) {
+  task(key: $key) {
+    tStubTask(stubScmRepo: {}) {
+      uuid
+      name
+      namespace
+      scmType
+      auth {
+        isPublic
+      }
+    }
+  }
+}

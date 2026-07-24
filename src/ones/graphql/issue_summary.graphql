@@ -1,0 +1,17 @@
+query FetchUserManhoursInfo {
+  buckets(
+    groupBy: $groupBy
+    orderBy: $orderBy
+  ) {
+    manhours(filter: $manhourFilter) {
+      key
+    }
+    owner {
+      uuid
+      name
+    }
+    actualHours(sum: "manhours.recordedHour")
+    estimatedHours(sum: "manhours.estimatedHour")
+    remainingHour
+  }
+}

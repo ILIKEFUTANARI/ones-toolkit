@@ -1,0 +1,11 @@
+query Task {
+  task(key: $key) {
+    relatedWikiPages {
+      title
+      errorMessage
+    }
+    allRelatedCases(stubRelatedCases: {}) {
+      name
+    }
+  }
+}

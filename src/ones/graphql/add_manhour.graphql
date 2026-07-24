@@ -1,0 +1,14 @@
+mutation AddManhour {
+  addManhour(
+    mode: $mode
+    owner: $owner
+    task: $task
+    type: $type
+    start_time: $start_time
+    hours: $hours
+    description: $description
+    customData: $customData
+  ) {
+    key
+  }
+}

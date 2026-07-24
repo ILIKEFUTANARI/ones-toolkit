@@ -1,0 +1,16 @@
+query FetchUserManhours {
+  manhours(
+    filter: $manhourFilter
+    orderBy: $manhoursOrderBy
+  ) {
+    key
+    hours
+    startTime(unit: ONESDATE)
+    description
+    type
+    owner {
+      uuid
+      name
+    }
+  }
+}

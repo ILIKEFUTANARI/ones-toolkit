@@ -140,7 +140,7 @@ impl OnesClient {
         auth: &AuthContext,
         issue_uuid: &str,
     ) -> AppResult<QuickActionResponse> {
-        let query = "query Task { task(key: $key) { relatedWikiPages { title errorMessage } allRelatedCases(stubRelatedCases: {}) { name } } }";
+        let query = include_str!("graphql/quick_action_task_info.graphql");
         self.request_json(
             Method::POST,
             auth,

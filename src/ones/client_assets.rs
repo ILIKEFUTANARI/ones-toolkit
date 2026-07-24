@@ -47,40 +47,7 @@ impl OnesClient {
         auth: &AuthContext,
         issue_uuid: &str,
     ) -> AppResult<CodeAssociationResponse> {
-        let query = r#"query Task($key: Key) {
-  task(key: $key) {
-    devopsTasksCommits(orderBy: {timestamp: DESC}) {
-      author
-      branch
-      hash
-      message
-      repo
-      scm
-      url
-      uuid
-    }
-    devopsPullRequests(orderBy: {updateTime: DESC}) {
-      key
-      uuid
-      number
-      title
-      state
-      author
-      fromBranch
-      toBranch
-      url
-      repo
-      scmType
-    }
-    devopsBranches(orderBy: {createTime: DESC}) {
-      uuid
-      name
-      url
-      repo
-      scmType
-    }
-  }
-}"#;
+        let query = include_str!("graphql/code_associations.graphql");
         self.request_json(
             Method::POST,
             auth,
@@ -119,19 +86,7 @@ impl OnesClient {
         auth: &AuthContext,
         issue_uuid: &str,
     ) -> AppResult<CodeRepositoriesResponse> {
-        let query = r#"query Task($key: Key) {
-  task(key: $key) {
-    tStubTask(stubScmRepo: {}) {
-      uuid
-      name
-      namespace
-      scmType
-      auth {
-        isPublic
-      }
-    }
-  }
-}"#;
+        let query = include_str!("graphql/code_repositories.graphql");
         self.request_json(
             Method::POST,
             auth,

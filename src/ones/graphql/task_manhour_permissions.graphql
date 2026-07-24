@@ -1,0 +1,11 @@
+query Task($key: Key) {
+  task(key: $key) {
+    project {
+      uuid
+    }
+    hasUpdateOwnAssessManHourPermission(attachPermission: {permissions: ["manage_task_own_assess_manhour"]})
+    hasUpdateAllAssessManHourPermission(attachPermission: {permissions: ["manage_task_assess_manhour"]})
+    hasUpdateOwnManHourPermission(attachPermission: {permissions: ["manage_task_own_record_manhours"]})
+    hasUpdateAllManHourPermission(attachPermission: {permissions: ["manage_task_record_manhours"]})
+  }
+}

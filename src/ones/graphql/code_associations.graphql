@@ -1,0 +1,34 @@
+query Task($key: Key) {
+  task(key: $key) {
+    devopsTasksCommits(orderBy: {timestamp: DESC}) {
+      author
+      branch
+      hash
+      message
+      repo
+      scm
+      url
+      uuid
+    }
+    devopsPullRequests(orderBy: {updateTime: DESC}) {
+      key
+      uuid
+      number
+      title
+      state
+      author
+      fromBranch
+      toBranch
+      url
+      repo
+      scmType
+    }
+    devopsBranches(orderBy: {createTime: DESC}) {
+      uuid
+      name
+      url
+      repo
+      scmType
+    }
+  }
+}
