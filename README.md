@@ -87,6 +87,24 @@ export ONES_PASSWORD="your-password"
 cargo run --release -- stdio
 ```
 
+### 状态流转输入
+
+`issue transition-preview` 和 `issue transition` 通过 `--input PATH|-` 读取 JSON。`field_values[].value` 会保留 JSON 结构，支持字符串、单个对象和对象数组，例如：
+
+```json
+{
+  "transition_uuid": "transition-demo-001",
+  "field_values": [
+    {
+      "field_uuid": "field057",
+      "value": [
+        {"uuid": "comment-demo-001", "content": "FAT 回归评论"}
+      ]
+    }
+  ]
+}
+```
+
 ## 发布
 
 推送匹配 `v*` 的标签会触发 Forgejo Actions，自动运行测试并发布多平台二进制文件：

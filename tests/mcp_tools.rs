@@ -66,6 +66,21 @@ async fn mcp_http_exposes_issue_tooling() {
             .iter()
             .any(|tool| tool.name == "execute_issue_transition")
     );
+    for name in ["preview_issue_transition", "execute_issue_transition"] {
+        let tool = tools.iter().find(|tool| tool.name == name).unwrap();
+        let schema = serde_json::to_value(tool).unwrap();
+        let value_schema = &schema["inputSchema"]["$defs"]["TransitionFieldValueSchema"];
+        assert!(value_schema["anyOf"].is_array(), "{schema}");
+        let branches = value_schema["anyOf"].as_array().unwrap();
+        assert_eq!(branches.len(), 3, "{schema}");
+        assert!(branches.iter().any(|branch| branch["type"] == "string"));
+        assert!(branches.iter().any(|branch| branch["type"] == "object"));
+        assert!(
+            branches
+                .iter()
+                .any(|branch| branch["type"] == "array" && branch["items"]["type"] == "object")
+        );
+    }
     for name in ["get_issue_by_display_id", "get_issue_detail"] {
         let tool = tools.iter().find(|tool| tool.name == name).unwrap();
         let output_schema = serde_json::to_string(tool.output_schema.as_ref().unwrap()).unwrap();
@@ -315,6 +330,12 @@ async fn mcp_http_exposes_issue_tooling() {
             "field_values": [{
                 "field_uuid": "field-demo-text",
                 "value": "已完成接口回归"
+            }, {
+                "field_uuid": "field057",
+                "value": [{
+                    "uuid": "comment-demo-001",
+                    "content": "FAT 回归评论"
+                }]
             }]
         })
     );
@@ -325,6 +346,40 @@ async fn mcp_http_exposes_issue_tooling() {
     );
     assert_eq!(valid_preview["transition"]["to_status"]["name"], "FAT测试");
     assert_eq!(valid_preview["validation_errors"], serde_json::json!([]));
+    assert_eq!(
+        valid_preview["normalized_field_values"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|field| field["field_uuid"] == "field057")
+            .unwrap()["value"],
+        serde_json::json!([{
+            "uuid": "comment-demo-001",
+            "content": "FAT 回归评论"
+        }])
+    );
+
+    let object_preview = call_tool!(
+        "preview_issue_transition",
+        serde_json::json!({
+            "issue_uuid": "issue-demo-001",
+            "transition_uuid": "transition-demo-001",
+            "worklog": {
+                "hours": 6.0,
+                "description": "对象值兼容回归",
+                "start_at": "2026-07-14T09:00:00Z"
+            },
+            "test_scope": "对象值兼容",
+            "field_values": [{
+                "field_uuid": "field057",
+                "value": {
+                    "uuid": "comment-demo-002",
+                    "content": "单对象兼容"
+                }
+            }]
+        })
+    );
+    assert_eq!(object_preview["valid"], true);
 
     let invalid_type_preview = call_tool!(
         "preview_issue_transition",
@@ -345,6 +400,32 @@ async fn mcp_http_exposes_issue_tooling() {
             .iter()
             .any(|error| error.as_str().unwrap().contains("field-demo-text"))
     );
+
+    for invalid_value in [
+        serde_json::json!(null),
+        serde_json::json!(true),
+        serde_json::json!([123]),
+    ] {
+        let invalid_reference_preview = call_tool!(
+            "preview_issue_transition",
+            serde_json::json!({
+                "issue_uuid": "issue-demo-001",
+                "transition_uuid": "transition-demo-001",
+                "field_values": [{
+                    "field_uuid": "field057",
+                    "value": invalid_value
+                }]
+            })
+        );
+        assert_eq!(invalid_reference_preview["valid"], false);
+        assert!(
+            invalid_reference_preview["validation_errors"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|error| error.as_str().unwrap().contains("field057"))
+        );
+    }
 
     let over_limit_preview = call_tool!(
         "preview_issue_transition",
@@ -391,11 +472,39 @@ async fn mcp_http_exposes_issue_tooling() {
             "field_values": [{
                 "field_uuid": "field-demo-text",
                 "value": "已完成接口回归"
+            }, {
+                "field_uuid": "field057",
+                "value": [{
+                    "uuid": "comment-demo-001",
+                    "content": "FAT 回归评论"
+                }]
             }]
         })
     );
     assert_eq!(transition["transition_uuid"], "transition-demo-001");
     assert_eq!(transition["target_status"]["name"], "FAT测试");
+
+    let missing_compute_transition = call_tool!(
+        "execute_issue_transition",
+        serde_json::json!({
+            "issue_uuid": "issue-demo-001",
+            "transition_uuid": "transition-demo-001",
+            "worklog": {
+                "hours": 6.0,
+                "description": "缺少 compute token 的异步回归",
+                "start_at": "2026-07-14T09:00:00Z"
+            },
+            "test_scope": "异步令牌兼容",
+            "field_values": [{
+                "field_uuid": "field-demo-text",
+                "value": "simulate-missing-compute"
+            }]
+        })
+    );
+    assert_eq!(
+        missing_compute_transition["transition_uuid"],
+        "transition-demo-001"
+    );
 
     let activity = call_tool!(
         "list_issue_activity",

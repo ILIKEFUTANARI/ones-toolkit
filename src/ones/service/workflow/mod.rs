@@ -120,7 +120,7 @@ impl OnesService {
             self,
             auth,
             &async_tokens.async_token,
-            &async_tokens.async_compute_token,
+            async_tokens.async_compute_token.as_deref(),
         )
         .await?;
 

@@ -68,7 +68,8 @@ pub struct RecordableManhourResponse {
 #[derive(Debug, Deserialize)]
 pub struct NewTransitResponse {
     pub async_token: String,
-    pub async_compute_token: String,
+    #[serde(default)]
+    pub async_compute_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -81,4 +82,20 @@ pub struct AsyncStatusResponse {
 pub struct AsyncResult {
     pub status: String,
     pub error: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::NewTransitResponse;
+
+    #[test]
+    fn accepts_new_transit_response_without_compute_token() {
+        let response: NewTransitResponse = serde_json::from_str(include_str!(
+            "../../tests/fixtures/new_transit_missing_compute.json"
+        ))
+        .unwrap();
+
+        assert_eq!(response.async_token, "async-demo-token");
+        assert_eq!(response.async_compute_token, None);
+    }
 }

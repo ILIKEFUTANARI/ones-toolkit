@@ -343,6 +343,17 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
     );
     assert!(openapi["components"]["schemas"]["TransitionValues"].is_object());
     assert_eq!(
+        openapi["components"]["schemas"]["TransitionFieldValue"]["properties"]["value"]["$ref"],
+        "#/components/schemas/TransitionFieldValueSchema"
+    );
+    assert_eq!(
+        openapi["components"]["schemas"]["TransitionFieldValueSchema"]["oneOf"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
+    assert_eq!(
         openapi["paths"]["/api/work-hours/remaining"]["patch"]["requestBody"]["content"]["application/json"]
             ["schema"]["$ref"],
         "#/components/schemas/UpdateRemainingHoursInput"
@@ -382,6 +393,12 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
         "field_values": [{
             "field_uuid": "field-demo-text",
             "value": "已完成接口回归"
+        }, {
+            "field_uuid": "field057",
+            "value": [{
+                "uuid": "comment-demo-001",
+                "content": "FAT 回归评论"
+            }]
         }]
     });
     let valid_preview: Value = client

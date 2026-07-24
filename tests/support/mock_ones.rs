@@ -235,10 +235,41 @@ async fn new_transit(request: Request<Body>) -> impl IntoResponse {
     assert_eq!(worklog["value"][0]["hours"], 600000);
     assert_eq!(worklog["value"][0]["owner"], "session-user-demo");
     assert_eq!(worklog["value"][0]["task"], "issue-demo-001");
-    fixture(include_str!("../fixtures/new_transit.json"))
+    if let Some(comment) = value["field_values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|field| field["field_uuid"] == "field057")
+    {
+        assert_eq!(
+            comment["value"],
+            json!([{"uuid": "comment-demo-001", "content": "FAT 回归评论"}])
+        );
+    }
+    if value["field_values"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|field| {
+            field["field_uuid"] == "field-demo-text" && field["value"] == "simulate-missing-compute"
+        })
+    {
+        fixture(include_str!("../fixtures/new_transit_missing_compute.json"))
+    } else {
+        fixture(include_str!("../fixtures/new_transit.json"))
+    }
 }
 
-async fn async_status() -> impl IntoResponse {
+async fn async_status(request: Request<Body>) -> impl IntoResponse {
+    let bytes = axum::body::to_bytes(request.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let value: Value = serde_json::from_slice(&bytes).unwrap();
+    let tokens = value["tokens"].as_object().unwrap();
+    assert_eq!(tokens["async_token"], "async-demo-token");
+    if let Some(async_compute_token) = tokens.get("async_compute_token") {
+        assert_eq!(async_compute_token, "async-demo-compute");
+    }
     fixture(include_str!("../fixtures/async_status_done.json"))
 }
 

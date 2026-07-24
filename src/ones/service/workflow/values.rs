@@ -149,9 +149,7 @@ fn validate_field_value(field: &IssueFieldDefinition, value: &Value, errors: &mu
         "float" => value.is_number(),
         "boolean" => value.is_boolean(),
         "single_reference_object" => reference_value(value),
-        "multi_reference_object" => value
-            .as_array()
-            .is_some_and(|values| values.iter().all(reference_value)),
+        "multi_reference_object" => multi_reference_value(value),
         "recorded_manhour_list" => value.is_array(),
         "duration_hour" | "duration_second" => value.is_number(),
         // ONES date fields are represented as either epoch values or strings by different APIs.
@@ -160,8 +158,10 @@ fn validate_field_value(field: &IssueFieldDefinition, value: &Value, errors: &mu
     };
     if !valid {
         errors.push(format!(
-            "field {} value does not match ONES type {}",
-            field.uuid, value_type
+            "field {} value of JSON type {} does not match ONES type {}",
+            field.uuid,
+            json_type_name(value),
+            value_type,
         ));
     }
 }
@@ -182,4 +182,30 @@ fn reference_value(value: &Value) -> bool {
             .and_then(|object| object.get("uuid"))
             .and_then(Value::as_str)
             .is_some_and(|value| !value.trim().is_empty())
+}
+
+fn multi_reference_value(value: &Value) -> bool {
+    match value {
+        Value::String(value) => !value.trim().is_empty(),
+        Value::Object(object) => !object.is_empty(),
+        Value::Array(values) => {
+            !values.is_empty()
+                && values.iter().all(|value| {
+                    value.as_object().is_some_and(|object| !object.is_empty())
+                        || value.as_str().is_some_and(|value| !value.trim().is_empty())
+                })
+        }
+        _ => false,
+    }
+}
+
+fn json_type_name(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+    }
 }

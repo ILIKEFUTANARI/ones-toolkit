@@ -145,17 +145,18 @@ impl OnesClient {
         &self,
         auth: &AuthContext,
         async_token: &str,
-        async_compute_token: &str,
+        async_compute_token: Option<&str>,
     ) -> AppResult<AsyncStatusResponse> {
+        let mut tokens = json!({"async_token": async_token});
+        if let Some(async_compute_token) = async_compute_token {
+            tokens["async_compute_token"] = Value::String(async_compute_token.to_string());
+        }
         self.request_json(
             Method::POST,
             auth,
             self.ones_project_team_url("async_status"),
             Some(&json!({
-                "tokens": {
-                    "async_token": async_token,
-                    "async_compute_token": async_compute_token,
-                },
+                "tokens": tokens,
                 "block": true,
             })),
         )

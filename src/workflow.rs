@@ -1,6 +1,7 @@
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 use utoipa::ToSchema;
 
 use crate::models::StatusSummary;
@@ -8,7 +9,17 @@ use crate::models::StatusSummary;
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct TransitionFieldValue {
     pub field_uuid: String,
+    #[schemars(with = "TransitionFieldValueSchema")]
+    #[schema(value_type = TransitionFieldValueSchema)]
     pub value: Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(untagged)]
+pub enum TransitionFieldValueSchema {
+    String(String),
+    Object(BTreeMap<String, Value>),
+    ObjectArray(Vec<BTreeMap<String, Value>>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -76,4 +87,28 @@ pub struct TransitionExecutionResponse {
     pub issue_uuid: String,
     pub transition_uuid: String,
     pub target_status: StatusSummary,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TransitionValues;
+
+    #[test]
+    fn preserves_supported_dynamic_field_value_shapes() {
+        for value in [
+            serde_json::json!("comment-demo-text"),
+            serde_json::json!({"uuid": "comment-demo-001", "content": "comment"}),
+            serde_json::json!([{"uuid": "comment-demo-001", "content": "comment"}]),
+        ] {
+            let input = serde_json::json!({
+                "transition_uuid": "transition-demo-001",
+                "field_values": [{
+                    "field_uuid": "field057",
+                    "value": value
+                }]
+            });
+            let parsed: TransitionValues = serde_json::from_value(input.clone()).unwrap();
+            assert_eq!(serde_json::to_value(parsed).unwrap(), input);
+        }
+    }
 }

@@ -12,7 +12,7 @@ pub(super) async fn wait_for_transition(
     service: &OnesService,
     auth: &AuthContext,
     async_token: &str,
-    async_compute_token: &str,
+    async_compute_token: Option<&str>,
 ) -> AppResult<()> {
     timeout(
         POLL_TIMEOUT,
@@ -26,7 +26,7 @@ async fn poll_until_complete(
     service: &OnesService,
     auth: &AuthContext,
     async_token: &str,
-    async_compute_token: &str,
+    async_compute_token: Option<&str>,
 ) -> AppResult<()> {
     for attempt in 0..POLL_ATTEMPTS {
         let response = service
