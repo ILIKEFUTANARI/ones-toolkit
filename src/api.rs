@@ -5,6 +5,7 @@ use crate::models::{
     WorkbenchViewDetail, WorkbenchViewSummary,
 };
 use crate::ones::field_catalog::FieldDefinition;
+use crate::work_hours::{IssueWorkHoursResponse, WorkHourMutationResponse, WorkHourReportResponse};
 use crate::workflow::IssueTransitionsResponse;
 use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -50,3 +51,6 @@ pub type CodeLinksResponse = IssueCodeLinks;
 pub type CreateBranchResponse = CreateBranchResult;
 
 pub type TransitionsResponse = IssueTransitionsResponse;
+pub type WorkHoursResponse = IssueWorkHoursResponse;
+pub type WorkHourReport = WorkHourReportResponse;
+pub type WorkHourMutation = WorkHourMutationResponse;

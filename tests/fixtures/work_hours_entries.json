@@ -1,0 +1,1 @@
+{"data":{"manhours":[{"key":"manhour-demo-recorded","hours":125000,"startTime":1784538000,"description":"Reviewed the payment flow","type":"recorded","owner":{"uuid":"session-user-demo","name":"Alice Example"}},{"key":"manhour-demo-estimated","hours":250000,"startTime":1784475000,"description":"","type":"estimated","owner":{"uuid":"user-demo-002","name":"Taylor Example"}}]}}

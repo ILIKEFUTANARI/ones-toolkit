@@ -8,6 +8,11 @@ use crate::{
     http_api::auth_from_headers,
     models::AuthContext,
     ones::service::OnesService,
+    work_hours::{
+        AddWorkHourInput, DeleteWorkHourInput, IssueWorkHoursResponse, ListIssueWorkHoursQuery,
+        UpdateRemainingHoursInput, WorkHourMutationResponse, WorkHourReportQuery,
+        WorkHourReportResponse,
+    },
     workflow::{
         IssueTransitionsResponse, TransitionExecutionResponse, TransitionPreviewResponse,
         TransitionValues,
@@ -291,6 +296,65 @@ impl OnesMcpServer {
                 .await,
         )?;
         Ok(Json(activity))
+    }
+
+    #[rmcp::tool(
+        description = "List recorded and estimated work hours for one ONES issue, optionally filtered by owner and date range"
+    )]
+    async fn list_issue_work_hours(
+        &self,
+        Parameters(query): Parameters<ListIssueWorkHoursQuery>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<IssueWorkHoursResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let response = map_error(self.service.list_issue_work_hours(&auth, &query).await)?;
+        Ok(Json(response))
+    }
+
+    #[rmcp::tool(
+        description = "Query actual work hours by issue for an inclusive daily date range, optionally filtered by owner or one issue"
+    )]
+    async fn query_work_hour_report(
+        &self,
+        Parameters(query): Parameters<WorkHourReportQuery>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<WorkHourReportResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let response = map_error(self.service.query_work_hour_report(&auth, &query).await)?;
+        Ok(Json(response))
+    }
+
+    #[rmcp::tool(description = "Record actual work hours directly on one ONES issue")]
+    async fn add_work_hour(
+        &self,
+        Parameters(input): Parameters<AddWorkHourInput>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<WorkHourMutationResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let response = map_error(self.service.add_work_hour(&auth, &input).await)?;
+        Ok(Json(response))
+    }
+
+    #[rmcp::tool(description = "Set remaining work hours for one ONES issue and owner")]
+    async fn update_remaining_hours(
+        &self,
+        Parameters(input): Parameters<UpdateRemainingHoursInput>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<WorkHourMutationResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let response = map_error(self.service.update_remaining_hours(&auth, &input).await)?;
+        Ok(Json(response))
+    }
+
+    #[rmcp::tool(description = "Delete one recorded or estimated work-hour entry by key")]
+    async fn delete_work_hour(
+        &self,
+        Parameters(input): Parameters<DeleteWorkHourInput>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<WorkHourMutationResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let response = map_error(self.service.delete_work_hour(&auth, &input).await)?;
+        Ok(Json(response))
     }
 }
 

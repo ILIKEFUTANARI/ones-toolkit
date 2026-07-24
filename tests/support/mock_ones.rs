@@ -274,7 +274,107 @@ async fn related(request: Request<Body>) -> impl IntoResponse {
         .unwrap();
     let value: Value = serde_json::from_slice(&bytes).unwrap();
     let query = value["query"].as_str().unwrap_or_default();
-    if query.contains("tStubTask") {
+    if query.contains("FetchUserManhoursInfo") {
+        assert_eq!(
+            value["variables"]["manhourFilter"]["task"]["uuid_equal"],
+            "issue-demo-001"
+        );
+        if value["variables"]["manhourFilter"]
+            .get("owner_equal")
+            .is_some()
+        {
+            assert_eq!(
+                value["variables"]["manhourFilter"]["owner_equal"],
+                "session-user-demo"
+            );
+        }
+        if value["variables"]["manhourFilter"]
+            .get("startTime_range")
+            .is_some()
+        {
+            assert_eq!(
+                value["variables"]["manhourFilter"]["startTime_range"]["from"],
+                "2026-07-19"
+            );
+            assert_eq!(
+                value["variables"]["manhourFilter"]["startTime_range"]["to"],
+                "2026-07-20"
+            );
+        }
+        fixture(include_str!("../fixtures/work_hours_summary.json"))
+    } else if query.contains("FetchUserManhours") {
+        assert_eq!(
+            value["variables"]["manhourFilter"]["task"]["uuid_in"][0],
+            "issue-demo-001"
+        );
+        if value["variables"]["manhourFilter"]
+            .get("owner_in")
+            .is_some()
+        {
+            assert_eq!(
+                value["variables"]["manhourFilter"]["owner_in"][0],
+                "session-user-demo"
+            );
+        }
+        if value["variables"]["manhourFilter"]
+            .get("startTime_range")
+            .is_some()
+        {
+            assert_eq!(
+                value["variables"]["manhourFilter"]["startTime_range"]["from"],
+                "2026-07-19"
+            );
+            assert_eq!(
+                value["variables"]["manhourFilter"]["startTime_range"]["to"],
+                "2026-07-20"
+            );
+        }
+        fixture(include_str!("../fixtures/work_hours_entries.json"))
+    } else if query.contains("QUERY_MANHOURS") {
+        let filter = &value["variables"]["filter"]["manhours"];
+        if filter.get("owner_in").is_some() {
+            assert_eq!(filter["owner_in"][0], "session-user-demo");
+        }
+        if filter.get("task").is_some() {
+            assert_eq!(filter["task"]["uuid_in"][0], "issue-demo-001");
+        }
+        fixture(include_str!("../fixtures/work_hours_report.json"))
+    } else if query.contains("mutation AddManhour") {
+        let variables = &value["variables"];
+        assert_eq!(variables["task"], "issue-demo-001");
+        assert_eq!(variables["owner"], "session-user-demo");
+        assert_eq!(variables["hours"], 125000);
+        assert_eq!(variables["start_time"], 1784538000);
+        fixture(include_str!("../fixtures/work_hours_add.json"))
+    } else if query.contains("mutation UpdateRemainingHour") {
+        let variables = &value["variables"];
+        assert_eq!(
+            variables["key"],
+            "remaining_hour-issue-demo-001-session-user-demo"
+        );
+        assert_eq!(variables["hours"], 0);
+        fixture(include_str!("../fixtures/work_hours_update.json"))
+    } else if query.contains("mutation DeleteManhour") {
+        match value["variables"]["key"].as_str() {
+            Some("manhour-demo-recorded") => {
+                fixture(include_str!("../fixtures/work_hours_delete.json"))
+            }
+            Some("manhour-demo-estimated") => {
+                fixture(include_str!("../fixtures/work_hours_delete_estimated.json"))
+            }
+            key => panic!("unexpected work-hour delete key {key:?}"),
+        }
+    } else if query.contains("hasUpdateOwnAssessManHourPermission") {
+        if value["variables"]["key"] == "task-issue-denied" {
+            return fixture(r#"{"errors":[{"message":"work-hour permission denied"}]}"#);
+        }
+        assert!(query.contains("attachPermission"), "{query}");
+        assert!(query.contains("manage_task_own_assess_manhour"), "{query}");
+        assert!(query.contains("manage_task_assess_manhour"), "{query}");
+        assert!(query.contains("manage_task_own_record_manhours"), "{query}");
+        assert!(query.contains("manage_task_record_manhours"), "{query}");
+        fixture(include_str!("../fixtures/work_hour_permission.json"))
+    } else if query.contains("tStubTask") {
         fixture(include_str!("../fixtures/code_repositories.json"))
     } else if query.contains("devopsBranches") {
         fixture(include_str!("../fixtures/code_links.json"))

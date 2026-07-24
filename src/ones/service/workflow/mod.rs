@@ -18,8 +18,6 @@ use helpers::{apply_rule_states, transition_summary};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 
-const ONES_HOURS_UNIT: f64 = 100_000.0;
-
 struct IssueContext {
     project_uuid: String,
     issue_type_uuid: String,

@@ -7,7 +7,7 @@ ONES 的非官方第三方集成工具，提供：
 
 - HTTP JSON API 和 OpenAPI 文档
 - MCP Streamable HTTP 和 stdio
-- 命令行访问工作台、Issue、附件、代码关联和状态流转
+- 命令行访问工作台、Issue、附件、代码关联、状态流转和统一工时
 - 发布适用于 Linux、macOS、Windows 的预编译二进制文件
 
 项目独立开发，与 ONES 官方无隶属、赞助或授权关系。
@@ -38,6 +38,34 @@ HTTP 请求使用以下请求头进行 ONES 认证：
 x-ones-email: user@example.test
 x-ones-password: your-password
 ```
+
+## 工时
+
+工时接口统一使用小时小数，Issue 可用 UUID 或显示 ID 标识。Issue 明细查询的人员、起止日期可省略；跨 Issue 报表必须提供 `from` 和 `to`。
+
+HTTP 入口：
+
+```text
+GET    /api/work-hours/issue
+GET    /api/work-hours/report
+POST   /api/work-hours
+PATCH  /api/work-hours/remaining
+DELETE /api/work-hours
+```
+
+MCP 工具：`list_issue_work_hours`、`query_work_hour_report`、`add_work_hour`、`update_remaining_hours`、`delete_work_hour`。
+
+CLI 示例：
+
+```bash
+ones work-hour list --issue-uuid issue-demo-001
+ones work-hour report --from 2026-07-01 --to 2026-07-31
+ones work-hour add --input work-hour.json
+ones work-hour update-remaining --issue-uuid issue-demo-001 --remaining-hours 0
+ones work-hour delete --display-id DEMO-1234 manhour-demo-recorded
+```
+
+新增和修改默认使用当前登录用户。删除必须传入目标 Issue 和精确的工时记录 `key`；返回结果中的人员姓名默认脱敏。
 
 ### 从源码运行
 

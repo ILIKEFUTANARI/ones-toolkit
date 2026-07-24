@@ -4,11 +4,13 @@ pub mod code;
 pub mod config;
 pub mod error;
 pub mod http_api;
+pub(crate) mod http_work_hours;
 pub(crate) mod http_workflow;
 pub mod mcp;
 pub mod models;
 pub mod ones;
 pub mod openapi;
+pub mod work_hours;
 pub mod workflow;
 
 pub use config::{AppConfig, StdioAuthConfig};

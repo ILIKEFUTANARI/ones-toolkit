@@ -28,7 +28,7 @@ pub(super) fn display_value(value: &Value, value_type: Option<&str>) -> Option<S
     }
 }
 
-pub(super) fn format_timestamp(value: &Value) -> Option<String> {
+pub(crate) fn format_timestamp(value: &Value) -> Option<String> {
     let raw = value.as_i64()?;
     let seconds = if raw.abs() >= 10_000_000_000_000 {
         raw / 1_000_000

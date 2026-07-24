@@ -38,7 +38,7 @@ async fn mcp_http_exposes_issue_tooling() {
             .iter()
             .any(|tool| tool.name == "get_issue_by_display_id")
     );
-    assert_eq!(tools.len(), 13);
+    assert_eq!(tools.len(), 18);
     assert!(tools.iter().any(|tool| tool.name == "list_issue_activity"));
     assert!(
         tools
@@ -93,6 +93,25 @@ async fn mcp_http_exposes_issue_tooling() {
             !schema["inputSchema"]["required"]
                 .as_array()
                 .is_some_and(|required| required.iter().any(|field| field == "redact"))
+        );
+    }
+
+    for (name, required) in [
+        ("list_issue_work_hours", "issue"),
+        ("query_work_hour_report", "from"),
+        ("add_work_hour", "hours"),
+        ("update_remaining_hours", "remaining_hours"),
+        ("delete_work_hour", "key"),
+    ] {
+        let tool = tools.iter().find(|tool| tool.name == name).unwrap();
+        let schema = serde_json::to_value(tool).unwrap();
+        assert!(schema["inputSchema"]["properties"].get(required).is_some());
+        assert!(
+            schema["inputSchema"]["required"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|field| field == required)
         );
     }
 
@@ -403,6 +422,57 @@ async fn mcp_http_exposes_issue_tooling() {
         ["has_next_page", "next_cursor"].into()
     );
 
+    let work_hours = call_tool!(
+        "list_issue_work_hours",
+        serde_json::json!({
+            "issue": {"issue_uuid": "issue-demo-001"},
+            "from": "2026-07-19",
+            "to": "2026-07-20"
+        })
+    );
+    assert_eq!(work_hours["entries"][0]["hours"], 1.25);
+    assert_eq!(work_hours["summaries"][0]["actual_hours"], 1.25);
+
+    let work_report = call_tool!(
+        "query_work_hour_report",
+        serde_json::json!({
+            "from": "2026-07-19",
+            "to": "2026-07-20"
+        })
+    );
+    assert_eq!(work_report["buckets"].as_array().unwrap().len(), 2);
+    assert_eq!(work_report["buckets"][0]["actual_hours"], 3.75);
+
+    let added = call_tool!(
+        "add_work_hour",
+        serde_json::json!({
+            "issue": {"issue_uuid": "issue-demo-001"},
+            "hours": 1.25,
+            "description": "Reviewed the payment flow",
+            "start_at": "2026-07-20T09:00:00Z"
+        })
+    );
+    assert_eq!(added["key"], "manhour-demo-added");
+
+    let updated = call_tool!(
+        "update_remaining_hours",
+        serde_json::json!({
+            "issue": {"issue_uuid": "issue-demo-001"},
+            "remaining_hours": 0
+        })
+    );
+    assert_eq!(updated["remaining_hours"], 0.0);
+
+    let deleted = call_tool!(
+        "delete_work_hour",
+        serde_json::json!({
+            "issue": {"display_id": "DEMO-1234"},
+            "key": "manhour-demo-recorded"
+        })
+    );
+    assert_eq!(deleted["key"], "manhour-demo-recorded");
+    assert_eq!(deleted["deleted_type"], "recorded");
+
     for response in [
         views,
         view,
@@ -419,6 +489,11 @@ async fn mcp_http_exposes_issue_tooling() {
         valid_preview,
         transition,
         activity,
+        work_hours,
+        work_report,
+        added,
+        updated,
+        deleted,
     ] {
         assert_no_nulls(&response);
     }

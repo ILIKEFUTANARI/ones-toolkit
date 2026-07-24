@@ -22,7 +22,31 @@ fn help_lists_shortcut_commands() {
     let help = String::from_utf8(output.stdout).unwrap();
 
     assert!(output.status.success());
-    for command in ["get", "issues", "attachments", "activity", "openapi"] {
+    for command in [
+        "get",
+        "issues",
+        "attachments",
+        "activity",
+        "work-hour",
+        "openapi",
+    ] {
         assert!(help.contains(command), "missing shortcut {command}: {help}");
+    }
+}
+
+#[test]
+fn work_hour_help_lists_unified_operations() {
+    let output = Command::new(env!("CARGO_BIN_EXE_ones"))
+        .args(["work-hour", "--help"])
+        .output()
+        .unwrap();
+    let help = String::from_utf8(output.stdout).unwrap();
+
+    assert!(output.status.success());
+    for command in ["list", "report", "add", "update-remaining", "delete"] {
+        assert!(
+            help.contains(command),
+            "missing work-hour command {command}: {help}"
+        );
     }
 }

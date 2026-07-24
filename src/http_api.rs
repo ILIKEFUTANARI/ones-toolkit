@@ -5,7 +5,7 @@ use crate::{
     },
     code::CreateBranchInput,
     error::{AppError, AppResult},
-    http_workflow,
+    http_work_hours, http_workflow,
     mcp::{McpAuthMode, build_mcp_service},
     models::AuthContext,
     ones::service::OnesService,
@@ -60,6 +60,11 @@ pub(crate) fn build_api_router() -> OpenApiRouter<HttpState> {
         .routes(routes!(http_workflow::preview_issue_transition))
         .routes(routes!(http_workflow::execute_issue_transition))
         .routes(routes!(list_issue_activity))
+        .routes(routes!(http_work_hours::list_issue_work_hours))
+        .routes(routes!(http_work_hours::query_work_hour_report))
+        .routes(routes!(http_work_hours::add_work_hour))
+        .routes(routes!(http_work_hours::update_remaining_hours))
+        .routes(routes!(http_work_hours::delete_work_hour))
 }
 
 #[utoipa::path(

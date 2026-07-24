@@ -1,5 +1,6 @@
 mod issues;
 mod views;
+mod work_hours;
 
 use super::{
     args::{Cli, Command},
@@ -62,6 +63,7 @@ async fn run_business_command(
         Command::Issues(args) => views::list_issues(service, &auth, args, json).await,
         Command::Attachments(args) => issues::attachments(service, &auth, args, json).await,
         Command::Activity(args) => issues::activity(service, &auth, args, json).await,
+        Command::WorkHour { command } => work_hours::run(service, &auth, command, json).await,
         Command::Serve { .. } | Command::Stdio | Command::Openapi => {
             unreachable!("non-business command handled before service creation")
         }

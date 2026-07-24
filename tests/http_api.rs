@@ -323,6 +323,10 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
         "/api/issues/{issue_uuid}/transition-preview",
         "/api/issues/{issue_uuid}/transition",
         "/api/issues/{issue_uuid}/activity",
+        "/api/work-hours",
+        "/api/work-hours/issue",
+        "/api/work-hours/remaining",
+        "/api/work-hours/report",
     ];
     let paths = openapi["paths"].as_object().unwrap();
     assert_eq!(paths.len(), expected_paths.len());
@@ -338,6 +342,12 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
             == "#/components/schemas/TransitionValues"
     );
     assert!(openapi["components"]["schemas"]["TransitionValues"].is_object());
+    assert_eq!(
+        openapi["paths"]["/api/work-hours/remaining"]["patch"]["requestBody"]["content"]["application/json"]
+            ["schema"]["$ref"],
+        "#/components/schemas/UpdateRemainingHoursInput"
+    );
+    assert!(openapi["components"]["schemas"]["IssueSelector"].is_object());
     assert_eq!(
         openapi["paths"]["/api/issues/{issue_uuid}/branches"]["post"]["requestBody"]["content"]["application/json"]
             ["schema"]["$ref"],
@@ -485,4 +495,97 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
     }
 
     assert_eq!(app.login_count.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn http_api_exposes_unified_work_hour_operations() {
+    let app = spawn_test_app().await;
+    let client = Client::new();
+
+    let issue: Value = client
+        .get(format!(
+            "{}/api/work-hours/issue?issue_uuid=issue-demo-001&from=2026-07-19&to=2026-07-20&owner_uuid=session-user-demo",
+            app.app_base
+        ))
+        .headers(auth_headers())
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(issue["issue"]["issue_uuid"], "issue-demo-001");
+    assert_eq!(issue["entries"][0]["hours"], 1.25);
+    assert_eq!(issue["entries"][0]["type"], "recorded");
+    assert!(
+        issue["entries"][0]["owner"]["name"]
+            .as_str()
+            .unwrap()
+            .starts_with("用户-")
+    );
+    assert_eq!(issue["summaries"][0]["remaining_hours"], 1.25);
+
+    let report: Value = client
+        .get(format!(
+            "{}/api/work-hours/report?issue_uuid=issue-demo-001&from=2026-07-19&to=2026-07-20",
+            app.app_base
+        ))
+        .headers(auth_headers())
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(report["buckets"].as_array().unwrap().len(), 1);
+    assert_eq!(report["buckets"][0]["actual_hours"], 3.75);
+    assert_eq!(report["buckets"][0]["series"][1]["hours"], 2.5);
+
+    let added: Value = client
+        .post(format!("{}/api/work-hours", app.app_base))
+        .headers(auth_headers())
+        .json(&serde_json::json!({
+            "issue": {"issue_uuid": "issue-demo-001"},
+            "hours": 1.25,
+            "description": "Reviewed the payment flow",
+            "start_at": "2026-07-20T09:00:00Z"
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(added["key"], "manhour-demo-added");
+
+    let updated: Value = client
+        .patch(format!("{}/api/work-hours/remaining", app.app_base))
+        .headers(auth_headers())
+        .json(&serde_json::json!({
+            "issue": {"issue_uuid": "issue-demo-001"},
+            "remaining_hours": 0
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(updated["remaining_hours"], 0.0);
+
+    let deleted: Value = client
+        .delete(format!("{}/api/work-hours", app.app_base))
+        .headers(auth_headers())
+        .json(&serde_json::json!({
+            "issue": {"display_id": "DEMO-1234"},
+            "key": "manhour-demo-recorded"
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(deleted["key"], "manhour-demo-recorded");
+    assert_eq!(deleted["deleted_type"], "recorded");
 }

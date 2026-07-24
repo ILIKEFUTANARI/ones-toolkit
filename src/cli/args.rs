@@ -37,6 +37,22 @@ pub enum Command {
     Issues(ViewIssuesArgs),
     Attachments(IssueCursorArgs),
     Activity(IssueActivityArgs),
+    WorkHour {
+        #[command(subcommand)]
+        command: WorkHourCommand,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub enum WorkHourCommand {
+    List(WorkHourListArgs),
+    Report(WorkHourReportArgs),
+    Add {
+        #[arg(long, value_name = "PATH|-")]
+        input: String,
+    },
+    UpdateRemaining(WorkHourUpdateArgs),
+    Delete(WorkHourDeleteArgs),
 }
 
 #[derive(Debug, Subcommand)]
@@ -90,6 +106,68 @@ pub struct IssueActivityArgs {
     pub limit: Option<u32>,
     #[arg(long)]
     pub no_redact: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkHourSelectorArgs {
+    #[arg(long, conflicts_with = "display_id")]
+    pub issue_uuid: Option<String>,
+    #[arg(long, conflicts_with = "issue_uuid")]
+    pub display_id: Option<String>,
+}
+
+impl WorkHourSelectorArgs {
+    pub fn selector(&self) -> ones::work_hours::IssueSelector {
+        ones::work_hours::IssueSelector {
+            issue_uuid: self.issue_uuid.clone(),
+            display_id: self.display_id.clone(),
+        }
+    }
+}
+
+#[derive(Debug, Args)]
+pub struct WorkHourListArgs {
+    #[command(flatten)]
+    pub selector: WorkHourSelectorArgs,
+    #[arg(long)]
+    pub from: Option<String>,
+    #[arg(long)]
+    pub to: Option<String>,
+    #[arg(long)]
+    pub owner_uuid: Option<String>,
+    #[arg(long)]
+    pub no_redact: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkHourReportArgs {
+    #[command(flatten)]
+    pub selector: WorkHourSelectorArgs,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub to: String,
+    #[arg(long)]
+    pub owner_uuid: Option<String>,
+    #[arg(long)]
+    pub no_redact: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkHourUpdateArgs {
+    #[command(flatten)]
+    pub selector: WorkHourSelectorArgs,
+    #[arg(long)]
+    pub remaining_hours: f64,
+    #[arg(long)]
+    pub owner_uuid: Option<String>,
+}
+
+#[derive(Debug, Args)]
+pub struct WorkHourDeleteArgs {
+    #[command(flatten)]
+    pub selector: WorkHourSelectorArgs,
+    pub key: String,
 }
 
 #[derive(Debug, Args)]
@@ -179,5 +257,30 @@ mod tests {
             panic!("expected transition preview");
         };
         assert_eq!(args.input, "-");
+    }
+
+    #[test]
+    fn parses_work_hour_selectors_and_report_dates() {
+        let cli = Cli::try_parse_from([
+            "ones",
+            "work-hour",
+            "report",
+            "--display-id",
+            "DEMO-1234",
+            "--from",
+            "2026-07-01",
+            "--to",
+            "2026-07-31",
+        ])
+        .unwrap();
+        let Command::WorkHour {
+            command: WorkHourCommand::Report(args),
+        } = cli.command
+        else {
+            panic!("expected work-hour report");
+        };
+        assert_eq!(args.selector.display_id.as_deref(), Some("DEMO-1234"));
+        assert_eq!(args.from, "2026-07-01");
+        assert_eq!(args.to, "2026-07-31");
     }
 }

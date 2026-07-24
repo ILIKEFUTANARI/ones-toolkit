@@ -51,6 +51,10 @@ mod tests {
             "/api/issues/{issue_uuid}/transition-preview",
             "/api/issues/{issue_uuid}/transition",
             "/api/issues/{issue_uuid}/activity",
+            "/api/work-hours",
+            "/api/work-hours/issue",
+            "/api/work-hours/remaining",
+            "/api/work-hours/report",
         ];
 
         assert_eq!(paths.len(), expected.len());

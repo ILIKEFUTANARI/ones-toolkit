@@ -8,6 +8,7 @@ mod attachments;
 mod code;
 mod fields;
 mod issue;
+mod work_hours;
 mod workbench;
 mod workflow;
 

@@ -1,10 +1,11 @@
 use super::super::OnesService;
-use super::{ONES_HOURS_UNIT, PreparedTransition};
+use super::PreparedTransition;
 use super::{helpers::semantic_field, time::parse_start_time};
 use crate::{
     error::AppResult,
     models::AuthContext,
     ones::raw::IssueFieldDefinition,
+    work_hours::ONES_HOURS_UNIT,
     workflow::{TransitionFieldValue, TransitionValues},
 };
 use serde_json::{Value, json};
