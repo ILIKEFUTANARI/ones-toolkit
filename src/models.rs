@@ -171,3 +171,43 @@ pub struct IssueActivityPage {
     pub activity: Vec<IssueActivityEntry>,
     pub page_info: PageInfo,
 }
+
+/// Flat task record returned by the public legacy `GET …/task/:taskUUIDOrNumber/info`
+/// endpoint. Fields are modeled conservatively from the documented shape;
+/// unknown fields are ignored via `serde(default)`. Custom fields and field
+/// values are not part of this shape — callers that need them should use the
+/// GraphQL `items/graphql` path.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+pub struct LegacyTaskInfo {
+    pub uuid: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub number: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issue_type_uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status_uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sprint_uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assign: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub desc: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub create_time: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_time: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deadline: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority_uuid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_id: Option<String>,
+}

@@ -38,7 +38,7 @@ async fn mcp_http_exposes_issue_tooling() {
             .iter()
             .any(|tool| tool.name == "get_issue_by_display_id")
     );
-    assert_eq!(tools.len(), 18);
+    assert_eq!(tools.len(), 19);
     assert!(tools.iter().any(|tool| tool.name == "list_issue_activity"));
     assert!(
         tools
@@ -65,6 +65,22 @@ async fn mcp_http_exposes_issue_tooling() {
         tools
             .iter()
             .any(|tool| tool.name == "execute_issue_transition")
+    );
+    let task_info_tool = tools
+        .iter()
+        .find(|tool| tool.name == "get_issue_task_info")
+        .expect("task-info tool present");
+    let task_info_schema = serde_json::to_value(task_info_tool).unwrap();
+    let task_info_output_schema =
+        serde_json::to_string(task_info_tool.output_schema.as_ref().unwrap()).unwrap();
+    assert!(
+        task_info_schema["inputSchema"]["properties"]["issue_uuid"].is_object(),
+        "{task_info_schema}"
+    );
+    assert!(
+        task_info_output_schema.contains("LegacyTaskInfo")
+            || task_info_output_schema.contains("task_info"),
+        "{task_info_output_schema}"
     );
     for name in ["preview_issue_transition", "execute_issue_transition"] {
         let tool = tools.iter().find(|tool| tool.name == name).unwrap();
@@ -223,6 +239,37 @@ async fn mcp_http_exposes_issue_tooling() {
     assert_eq!(keys(&unredacted), ["issue"].into());
     assert_eq!(keys(&unredacted["issue"]), detail_keys);
     assert_eq!(unredacted["issue"]["assignee"], "Alex Example");
+
+    let task_info = call_tool!(
+        "get_issue_task_info",
+        serde_json::json!({ "issue_uuid": "issue-demo-001" })
+    );
+    assert_eq!(keys(&task_info), ["task_info"].into());
+    assert_eq!(task_info["task_info"]["uuid"], "issue-demo-001");
+    assert_eq!(task_info["task_info"]["display_id"], "DEMO-1234");
+    assert_eq!(task_info["task_info"]["number"], 1);
+    assert_eq!(
+        keys(&task_info["task_info"]),
+        [
+            "assign",
+            "create_time",
+            "deadline",
+            "desc",
+            "display_id",
+            "issue_type_uuid",
+            "number",
+            "owner",
+            "path",
+            "priority_uuid",
+            "project_uuid",
+            "sprint_uuid",
+            "status_uuid",
+            "summary",
+            "update_time",
+            "uuid",
+        ]
+        .into()
+    );
 
     let attachments = call_tool!(
         "list_issue_attachments",
@@ -589,6 +636,7 @@ async fn mcp_http_exposes_issue_tooling() {
         issues,
         structured,
         unredacted,
+        task_info,
         attachments,
         next_attachments,
         code_links,

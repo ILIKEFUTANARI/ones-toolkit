@@ -7,7 +7,7 @@ use super::super::{
 };
 use ones::{
     AppError, AppResult, OnesService,
-    api::{AttachmentsResponse, IssueResponse},
+    api::{AttachmentsResponse, IssueResponse, LegacyTaskInfoResponse},
     code::CreateBranchInput,
     models::AuthContext,
     workflow::TransitionValues,
@@ -28,6 +28,7 @@ pub async fn run(
     match command {
         IssueCommand::Get(args) => get(service, auth, args, json).await,
         IssueCommand::GetByDisplayId(args) => get_by_display_id(service, auth, &args, json).await,
+        IssueCommand::TaskInfo { issue_uuid } => task_info(service, auth, &issue_uuid, json).await,
         IssueCommand::Attachments(args) => attachments(service, auth, args, json).await,
         IssueCommand::CodeLinks(args) => code_links(service, auth, args, json).await,
         IssueCommand::Activity(args) => activity(service, auth, args, json).await,
@@ -68,6 +69,18 @@ pub async fn get_by_display_id(
             .await?,
     };
     output::print_issue(&value, json)
+}
+
+pub async fn task_info(
+    service: Arc<OnesService>,
+    auth: &AuthContext,
+    issue_uuid: &str,
+    json: bool,
+) -> AppResult<()> {
+    let value = LegacyTaskInfoResponse {
+        task_info: service.legacy_task_info(auth, issue_uuid).await?,
+    };
+    output::print_legacy_task_info(&value, json)
 }
 
 pub async fn attachments(

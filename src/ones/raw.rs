@@ -146,3 +146,69 @@ pub struct QuickActionResponse {
 pub struct QuickActionData {
     pub task: Value,
 }
+
+/// Upstream-only shape for the public legacy task info REST endpoint.
+/// Converted to the public-facing [`crate::models::LegacyTaskInfo`] DTO so the
+/// HTTP/MCP/CLI layers can share a single Serialize/Deserialize/JsonSchema/ToSchema
+/// type with no upstream-specific loose types leaking into user-facing payloads.
+#[derive(Debug, Deserialize)]
+pub struct TaskInfoRaw {
+    pub uuid: String,
+    #[serde(default)]
+    pub number: Option<Value>,
+    #[serde(default)]
+    pub project_uuid: Option<String>,
+    #[serde(default)]
+    pub issue_type_uuid: Option<String>,
+    #[serde(default)]
+    pub status_uuid: Option<String>,
+    #[serde(default)]
+    pub sprint_uuid: Option<String>,
+    #[serde(default)]
+    pub owner: Option<String>,
+    #[serde(default)]
+    pub assign: Option<String>,
+    #[serde(default)]
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub desc: Option<String>,
+    #[serde(default)]
+    pub create_time: Option<i64>,
+    #[serde(default)]
+    pub update_time: Option<i64>,
+    #[serde(default)]
+    pub deadline: Option<i64>,
+    #[serde(default)]
+    pub priority_uuid: Option<String>,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default, rename = "display_id")]
+    pub display_id: Option<String>,
+}
+
+impl From<TaskInfoRaw> for crate::models::LegacyTaskInfo {
+    fn from(raw: TaskInfoRaw) -> Self {
+        let number = raw.number.as_ref().and_then(|value| match value {
+            Value::Number(number) => number.as_i64(),
+            _ => None,
+        });
+        Self {
+            uuid: raw.uuid,
+            number,
+            project_uuid: raw.project_uuid,
+            issue_type_uuid: raw.issue_type_uuid,
+            status_uuid: raw.status_uuid,
+            sprint_uuid: raw.sprint_uuid,
+            owner: raw.owner,
+            assign: raw.assign,
+            summary: raw.summary,
+            desc: raw.desc,
+            create_time: raw.create_time,
+            update_time: raw.update_time,
+            deadline: raw.deadline,
+            priority_uuid: raw.priority_uuid,
+            path: raw.path,
+            display_id: raw.display_id,
+        }
+    }
+}

@@ -4,7 +4,7 @@ use crate::{
     models::AuthContext,
     ones::raw::{
         IdentifierResponse, IssueFormFieldsResponse, LoginResponse, MessagesResponse,
-        OnesqlResponse, QuickActionResponse, ViewDetailResponse, ViewListResponse,
+        OnesqlResponse, QuickActionResponse, TaskInfoRaw, ViewDetailResponse, ViewListResponse,
     },
 };
 use reqwest::{Client, Method};
@@ -98,10 +98,15 @@ impl OnesClient {
     }
 
     pub async fn team_fields(&self, auth: &AuthContext) -> AppResult<IssueFormFieldsResponse> {
-        self.request_json(
+        // Prefer public legacy `…/project/team/:teamUUID/fields`; fall back to
+        // internal `…/ones-project/team/:teamUUID/v2/field/list` on 404/405.
+        self.request_json_with_legacy_fallback(
             Method::GET,
             auth,
-            self.ones_project_team_url("v2/field/list"),
+            [
+                self.project_team_url("fields"),
+                self.ones_project_team_url("v2/field/list"),
+            ],
             None::<&()>,
         )
         .await
@@ -112,6 +117,8 @@ impl OnesClient {
         auth: &AuthContext,
         body: &Value,
     ) -> AppResult<OnesqlResponse> {
+        // ONESQL is a separate request shape from `items/graphql`; the public
+        // GraphQL endpoint is not an equivalent fallback for this internal one.
         self.request_json(
             Method::POST,
             auth,
@@ -133,6 +140,26 @@ impl OnesClient {
             None::<&()>,
         )
         .await
+    }
+
+    /// Public legacy `GET /project/api/project/team/:teamUUID/task/:taskUUIDOrNumber/info`.
+    /// Returns the flat task record documented for the public legacy endpoint.
+    /// No fallback: the internal `workitems/onesql` returns a richer GraphQL
+    /// shape, so callers needing that should keep using `workitems_onesql`.
+    pub async fn task_info(
+        &self,
+        auth: &AuthContext,
+        task_uuid_or_number: &str,
+    ) -> AppResult<crate::models::LegacyTaskInfo> {
+        let response: TaskInfoRaw = self
+            .request_json(
+                Method::GET,
+                auth,
+                self.project_team_url(&format!("task/{task_uuid_or_number}/info")),
+                None::<&()>,
+            )
+            .await?;
+        Ok(response.into())
     }
 
     pub async fn quick_action_task_info(
@@ -181,6 +208,45 @@ impl OnesClient {
     {
         self.request_json_with_retry(method, auth, url, body, TransportRetry::Disabled)
             .await
+    }
+
+    /// Try the provided URLs in order. Fallback fires only on HTTP 404 / 405
+    /// (documented legacy-unavailable signals). Other statuses, JSON failures,
+    /// and transport errors propagate so we never mask real upstream problems.
+    pub(crate) async fn request_json_with_legacy_fallback<T, B, I>(
+        &self,
+        method: Method,
+        auth: &AuthContext,
+        urls: I,
+        body: Option<&B>,
+    ) -> AppResult<T>
+    where
+        T: serde::de::DeserializeOwned,
+        B: Serialize + ?Sized,
+        I: IntoIterator<Item = String>,
+    {
+        let mut last_fallback: Option<AppError> = None;
+        for url in urls {
+            match self
+                .request_json_with_retry(
+                    method.clone(),
+                    auth,
+                    url.clone(),
+                    body,
+                    TransportRetry::Enabled,
+                )
+                .await
+            {
+                Ok(value) => return Ok(value),
+                Err(error) if is_legacy_fallback_signal(&error) => {
+                    last_fallback = Some(error);
+                    continue;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        Err(last_fallback
+            .unwrap_or_else(|| AppError::invalid_input("legacy fallback list was empty")))
     }
 
     async fn request_json_with_retry<T, B>(
@@ -339,6 +405,19 @@ impl OnesClient {
 
 fn is_retryable_transport_error(error: &reqwest::Error) -> bool {
     error.is_connect() || error.is_request() || error.is_timeout()
+}
+
+/// Whether the error signals that a legacy public endpoint is unavailable on
+/// the current host. We only treat HTTP 404 / 405 as compatibility signals —
+/// 400, 401, 403, 429, and 5xx always propagate so callers see the real status.
+fn is_legacy_fallback_signal(error: &AppError) -> bool {
+    matches!(
+        error,
+        AppError::UpstreamStatus {
+            status: 404 | 405,
+            ..
+        }
+    )
 }
 
 #[cfg(test)]

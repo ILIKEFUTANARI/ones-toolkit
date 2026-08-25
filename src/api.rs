@@ -1,7 +1,7 @@
 use crate::attachments::IssueAttachmentPage;
 use crate::code::{CreateBranchResult, IssueCodeLinks};
 use crate::models::{
-    IssueActivityPage, IssueDetail, IssueListItem, PageInfo, WorkbenchIssueGroup,
+    IssueActivityPage, IssueDetail, IssueListItem, LegacyTaskInfo, PageInfo, WorkbenchIssueGroup,
     WorkbenchViewDetail, WorkbenchViewSummary,
 };
 use crate::ones::field_catalog::FieldDefinition;
@@ -40,6 +40,11 @@ pub struct IssueResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct FieldsResponse {
     pub fields: Vec<FieldDefinition>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+pub struct LegacyTaskInfoResponse {
+    pub task_info: LegacyTaskInfo,
 }
 
 pub type ActivityResponse = IssueActivityPage;

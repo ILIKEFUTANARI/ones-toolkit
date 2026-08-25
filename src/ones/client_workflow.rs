@@ -21,10 +21,15 @@ impl OnesClient {
         auth: &AuthContext,
         issue_uuid: &str,
     ) -> AppResult<TransitionListResponse> {
-        self.request_json(
+        // Prefer public legacy `…/task/:taskUUID/transitions`; fall back to
+        // internal `…/issue/:taskUUID/v2/transitions` on 404/405.
+        self.request_json_with_legacy_fallback(
             Method::GET,
             auth,
-            self.ones_project_team_url(&format!("issue/{issue_uuid}/v2/transitions")),
+            [
+                self.project_team_url(&format!("task/{issue_uuid}/transitions")),
+                self.ones_project_team_url(&format!("issue/{issue_uuid}/v2/transitions")),
+            ],
             None::<&()>,
         )
         .await

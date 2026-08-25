@@ -1,8 +1,8 @@
 use ones::{
     api::{
         ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse,
-        GroupsResponse, IssueResponse, TransitionsResponse, ViewResponse, ViewsResponse,
-        WorkbenchIssuePage,
+        GroupsResponse, IssueResponse, LegacyTaskInfoResponse, TransitionsResponse, ViewResponse,
+        ViewsResponse, WorkbenchIssuePage,
     },
     models::PageInfo,
 };
@@ -118,6 +118,10 @@ pub fn print_view(value: &ViewResponse, json: bool) -> ones::AppResult<()> {
 }
 
 pub fn print_issue(value: &IssueResponse, json: bool) -> ones::AppResult<()> {
+    print_details(value, json)
+}
+
+pub fn print_legacy_task_info(value: &LegacyTaskInfoResponse, json: bool) -> ones::AppResult<()> {
     print_details(value, json)
 }
 

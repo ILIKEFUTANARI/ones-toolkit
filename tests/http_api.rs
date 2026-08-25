@@ -183,6 +183,44 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
     assert_eq!(keys(&direct_issue), BTreeSet::from(["issue"]));
     assert_eq!(keys(&direct_issue["issue"]), keys(&by_uuid["issue"]));
 
+    let task_info: Value = client
+        .get(format!(
+            "{}/api/issues/issue-demo-001/task-info",
+            app.app_base
+        ))
+        .headers(auth_headers())
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(keys(&task_info), BTreeSet::from(["task_info"]));
+    assert_eq!(task_info["task_info"]["uuid"], "issue-demo-001");
+    assert_eq!(task_info["task_info"]["display_id"], "DEMO-1234");
+    assert_eq!(task_info["task_info"]["number"], 1);
+    assert_eq!(
+        keys(&task_info["task_info"]),
+        BTreeSet::from([
+            "assign",
+            "create_time",
+            "deadline",
+            "desc",
+            "display_id",
+            "issue_type_uuid",
+            "number",
+            "owner",
+            "path",
+            "priority_uuid",
+            "project_uuid",
+            "sprint_uuid",
+            "status_uuid",
+            "summary",
+            "update_time",
+            "uuid",
+        ])
+    );
+
     let attachments: Value = client
         .get(format!(
             "{}/api/issues/issue-demo-001/attachments",
@@ -316,6 +354,7 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
         "/api/workbench/views/{view_uuid}/issues",
         "/api/issues/by-display-id/{display_id}",
         "/api/issues/{issue_uuid}",
+        "/api/issues/{issue_uuid}/task-info",
         "/api/issues/{issue_uuid}/attachments",
         "/api/issues/{issue_uuid}/code-links",
         "/api/issues/{issue_uuid}/branches",
@@ -497,6 +536,7 @@ async fn http_api_supports_issue_lookup_and_workbench_browse() {
         &issues,
         &direct_issue,
         &by_uuid,
+        &task_info,
         &attachments,
         &next_attachments,
         &code_links,

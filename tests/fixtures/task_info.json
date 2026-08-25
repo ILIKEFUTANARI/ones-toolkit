@@ -1,0 +1,18 @@
+{
+    "uuid": "issue-demo-001",
+    "number": 1,
+    "project_uuid": "project-demo-001",
+    "issue_type_uuid": "issue-type-demo-001",
+    "status_uuid": "status-demo-001",
+    "sprint_uuid": "sprint-demo-001",
+    "owner": "user-demo-owner",
+    "assign": "session-user-demo",
+    "summary": "legacy task info payload",
+    "desc": "demo description",
+    "create_time": 1566183936709120,
+    "update_time": 1566183936709120,
+    "deadline": 1572566400,
+    "priority_uuid": "priority-demo-001",
+    "path": "/DEMO-1234",
+    "display_id": "DEMO-1234"
+}

@@ -8,6 +8,7 @@ ONES 的非官方第三方集成工具，提供：
 - HTTP JSON API 和 OpenAPI 文档
 - MCP Streamable HTTP 和 stdio
 - 命令行访问工作台、Issue、附件、代码关联、状态流转和统一工时
+- 旧版 `/project/api/project/team/:teamUUID` REST 端点（字段、状态流转、任务 info）和旧版 `items/graphql` 端点的兼容入口
 - 发布适用于 Linux、macOS、Windows 的预编译二进制文件
 
 项目独立开发，与 ONES 官方无隶属、赞助或授权关系。
@@ -66,6 +67,23 @@ ones work-hour delete --display-id DEMO-1234 manhour-demo-recorded
 ```
 
 新增和修改默认使用当前登录用户。删除必须传入目标 Issue 和精确的工时记录 `key`；返回结果中的人员姓名默认脱敏。
+
+## 旧版接口
+
+在用户环境无法使用新版 Open API v2 时，下列旧版公开接口可用：
+
+- `GET /api/issues/{issue_uuid}/task-info`：读取旧版 `task/{uuidOrNumber}/info`，返回任务的基本字段（不含自定义字段）。
+- `GET /api/issues/{issue_uuid}/transitions`：读取旧版 `task/{uuid}/transitions`，列出可用的状态流转。
+- 字段定义、旧版 `items/graphql` GraphQL 等能力由现有统一接口复用。
+
+MCP 工具对应：`get_issue_task_info`、`list_issue_transitions`。CLI 对应：
+
+```bash
+ones issue task-info issue-demo-001
+ones issue transitions issue-demo-001
+```
+
+字段读取与状态流转在公开端点不可用时会自动回退到内部兼容端点；其他状态码（401、403、400、429、5xx、网络错误）按原状态上抛，不触发回退。
 
 ### 从源码运行
 

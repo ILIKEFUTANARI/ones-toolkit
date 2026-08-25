@@ -44,6 +44,7 @@ mod tests {
             "/api/workbench/views/{view_uuid}/issues",
             "/api/issues/by-display-id/{display_id}",
             "/api/issues/{issue_uuid}",
+            "/api/issues/{issue_uuid}/task-info",
             "/api/issues/{issue_uuid}/attachments",
             "/api/issues/{issue_uuid}/code-links",
             "/api/issues/{issue_uuid}/branches",
@@ -61,6 +62,15 @@ mod tests {
         for path in expected {
             assert!(paths.contains_key(path), "missing OpenAPI path {path}");
         }
+        let task_info = &paths["/api/issues/{issue_uuid}/task-info"]["get"];
+        let task_info_ref = task_info["responses"]["200"]["content"]["application/json"]["schema"]
+            ["$ref"]
+            .as_str()
+            .unwrap_or_default();
+        assert!(
+            task_info_ref.ends_with("LegacyTaskInfoResponse"),
+            "task-info response schema: {task_info}"
+        );
         assert_eq!(
             document["components"]["securitySchemes"]["onesEmail"]["name"],
             "x-ones-email"

@@ -1,7 +1,8 @@
 use crate::{
     api::{
         ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse,
-        GroupsResponse, IssueResponse, ViewResponse, ViewsResponse, WorkbenchIssuePage,
+        GroupsResponse, IssueResponse, LegacyTaskInfoResponse, ViewResponse, ViewsResponse,
+        WorkbenchIssuePage,
     },
     code::CreateBranchInput,
     error::{AppError, AppResult},
@@ -53,6 +54,7 @@ pub(crate) fn build_api_router() -> OpenApiRouter<HttpState> {
         .routes(routes!(list_issues))
         .routes(routes!(get_issue_by_display_id))
         .routes(routes!(get_issue))
+        .routes(routes!(get_issue_task_info))
         .routes(routes!(list_issue_attachments))
         .routes(routes!(list_issue_code_links))
         .routes(routes!(create_issue_branch))
@@ -201,6 +203,22 @@ async fn get_issue(
         .get_issue_detail(&auth, &issue_uuid, query.enabled())
         .await?;
     Ok(Json(IssueResponse { issue }))
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/issues/{issue_uuid}/task-info",
+    params(("issue_uuid" = String, Path)),
+    responses((status = 200, body = LegacyTaskInfoResponse))
+)]
+async fn get_issue_task_info(
+    State(state): State<HttpState>,
+    Path(issue_uuid): Path<String>,
+    headers: HeaderMap,
+) -> AppResult<Json<LegacyTaskInfoResponse>> {
+    let auth = auth_from_headers(&headers)?;
+    let task_info = state.service.legacy_task_info(&auth, &issue_uuid).await?;
+    Ok(Json(LegacyTaskInfoResponse { task_info }))
 }
 
 #[utoipa::path(

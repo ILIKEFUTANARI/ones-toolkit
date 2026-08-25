@@ -1,7 +1,8 @@
 use crate::{
     api::{
         ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse,
-        GroupsResponse, IssueResponse, ViewResponse, ViewsResponse, WorkbenchIssuePage,
+        GroupsResponse, IssueResponse, LegacyTaskInfoResponse, ViewResponse, ViewsResponse,
+        WorkbenchIssuePage,
     },
     code::CreateBranchInput,
     error::{AppError, AppResult},
@@ -173,6 +174,19 @@ impl OnesMcpServer {
                 .await,
         )?;
         Ok(Json(IssueResponse { issue }))
+    }
+
+    #[rmcp::tool(
+        description = "Read the public legacy ONES task info record (UUID or display number) for one issue"
+    )]
+    async fn get_issue_task_info(
+        &self,
+        Parameters(IssueUuidRequest { issue_uuid, .. }): Parameters<IssueUuidRequest>,
+        context: RequestContext<rmcp::RoleServer>,
+    ) -> Result<Json<LegacyTaskInfoResponse>, rmcp::ErrorData> {
+        let auth = map_error(self.auth_from_context(&context))?;
+        let task_info = map_error(self.service.legacy_task_info(&auth, &issue_uuid).await)?;
+        Ok(Json(LegacyTaskInfoResponse { task_info }))
     }
 
     #[rmcp::tool(

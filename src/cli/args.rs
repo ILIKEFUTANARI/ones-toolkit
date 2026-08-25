@@ -67,6 +67,7 @@ pub enum ViewCommand {
 pub enum IssueCommand {
     Get(IssueRedactionArgs),
     GetByDisplayId(DisplayIdArgs),
+    TaskInfo { issue_uuid: String },
     Attachments(IssueCursorArgs),
     CodeLinks(IssueRedactionArgs),
     Activity(IssueActivityArgs),
