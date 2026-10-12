@@ -1,9 +1,9 @@
 use crate::error::{AppError, AppResult};
-use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct IssueSelector {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issue_uuid: Option<String>,
@@ -11,28 +11,36 @@ pub struct IssueSelector {
     pub display_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct IssueReference {
     pub issue_uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_id: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum WorkHourType {
     Recorded,
     Estimated,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourOwner {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourEntry {
     pub key: String,
     pub hours: f64,
@@ -43,7 +51,9 @@ pub struct WorkHourEntry {
     pub owner: WorkHourOwner,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourSummary {
     pub owner: WorkHourOwner,
     pub actual_hours: f64,
@@ -51,20 +61,26 @@ pub struct WorkHourSummary {
     pub remaining_hours: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct IssueWorkHoursResponse {
     pub issue: IssueReference,
     pub entries: Vec<WorkHourEntry>,
     pub summaries: Vec<WorkHourSummary>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourSeriesPoint {
     pub date: String,
     pub hours: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourReportTask {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -75,21 +91,27 @@ pub struct WorkHourReportTask {
     pub project_uuid: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourReportBucket {
     pub task: WorkHourReportTask,
     pub actual_hours: f64,
     pub series: Vec<WorkHourSeriesPoint>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourReportResponse {
     pub from: String,
     pub to: String,
     pub buckets: Vec<WorkHourReportBucket>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct ListIssueWorkHoursQuery {
     pub issue: IssueSelector,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -102,7 +124,9 @@ pub struct ListIssueWorkHoursQuery {
     pub redact: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourReportQuery {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issue: Option<IssueSelector>,
@@ -114,7 +138,9 @@ pub struct WorkHourReportQuery {
     pub redact: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct AddWorkHourInput {
     pub issue: IssueSelector,
     pub hours: f64,
@@ -125,7 +151,9 @@ pub struct AddWorkHourInput {
     pub owner_uuid: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct UpdateRemainingHoursInput {
     pub issue: IssueSelector,
     pub remaining_hours: f64,
@@ -133,13 +161,17 @@ pub struct UpdateRemainingHoursInput {
     pub owner_uuid: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct DeleteWorkHourInput {
     pub issue: IssueSelector,
     pub key: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkHourMutationResponse {
     pub key: String,
     #[serde(skip_serializing_if = "Option::is_none")]

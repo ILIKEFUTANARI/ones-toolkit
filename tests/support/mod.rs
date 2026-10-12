@@ -5,7 +5,9 @@ pub mod mock_ones;
 
 use axum::{Router, http::HeaderMap};
 use mock_ones::{LegacyAvailability, LegacyCallCounters, MockState, build_mock_ones_router};
-use ones::{AppConfig, McpAuthMode, OnesService, build_http_app};
+use ones::{AppConfig, OnesService};
+#[cfg(all(feature = "http", feature = "mcp-http"))]
+use ones::{McpAuthMode, build_http_app};
 use std::sync::{Arc, atomic::AtomicUsize};
 use tokio::{
     net::TcpListener,
@@ -13,6 +15,7 @@ use tokio::{
     time::{Duration, sleep},
 };
 
+#[cfg(all(feature = "http", feature = "mcp-http"))]
 pub struct TestApp {
     pub app_base: String,
     pub _ones_base: String,
@@ -24,10 +27,12 @@ pub struct TestApp {
     _ones_handle: JoinHandle<()>,
 }
 
+#[cfg(all(feature = "http", feature = "mcp-http"))]
 pub async fn spawn_test_app() -> TestApp {
     spawn_test_app_with(None).await
 }
 
+#[cfg(all(feature = "http", feature = "mcp-http"))]
 pub async fn spawn_test_app_with(availability: Option<LegacyAvailability>) -> TestApp {
     let login_count = Arc::new(AtomicUsize::new(0));
     let field_list_count = Arc::new(AtomicUsize::new(0));

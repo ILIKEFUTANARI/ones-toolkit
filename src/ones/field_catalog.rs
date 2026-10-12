@@ -2,9 +2,7 @@ use crate::{
     error::{AppError, AppResult},
     ones::raw::IssueFieldDefinition,
 };
-use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
 pub struct FieldCatalog {
@@ -94,7 +92,9 @@ impl CoreFields {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct FieldDefinition {
     pub uuid: String,
     pub name: String,

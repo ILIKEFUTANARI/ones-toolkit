@@ -4,8 +4,8 @@ use rmcp::{
     ErrorData, ServerHandler,
     model::{
         ListResourceTemplatesResult, ListResourcesResult, PaginatedRequestParams,
-        ReadResourceRequestParams, ReadResourceResult, Resource, ResourceContents,
-        ResourceTemplate, ServerCapabilities, ServerInfo,
+        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
+        ResourceContents, ResourceTemplate, ServerCapabilities, ServerConfig,
     },
     service::RequestContext,
     tool_handler,
@@ -17,8 +17,8 @@ const ISSUE_FIELDS_SUFFIX: &str = "/fields";
 
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for OnesMcpServer {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
@@ -63,7 +63,7 @@ impl ServerHandler for OnesMcpServer {
         &self,
         request: ReadResourceRequestParams,
         context: RequestContext<rmcp::RoleServer>,
-    ) -> Result<ReadResourceResult, ErrorData> {
+    ) -> Result<ReadResourceResponse, ErrorData> {
         let auth = map_error(self.auth_from_context(&context))?;
         let fields = if request.uri == TEAM_FIELDS_URI {
             map_error(self.service.list_team_fields(&auth).await)?
@@ -77,9 +77,9 @@ impl ServerHandler for OnesMcpServer {
         };
         let text = serde_json::to_string(&FieldsResponse { fields })
             .map_err(|error| ErrorData::internal_error(error.to_string(), None))?;
-        Ok(ReadResourceResult::new(vec![
-            ResourceContents::text(text, request.uri).with_mime_type("application/json"),
-        ]))
+        Ok(ReadResourceResponse::Complete(ReadResourceResult::new(
+            vec![ResourceContents::text(text, request.uri).with_mime_type("application/json")],
+        )))
     }
 }
 

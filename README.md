@@ -1,50 +1,121 @@
 # ONES Toolkit
 
+English | [简体中文](README.zh-CN.md)
+
 [![Release](https://forgejo.cloud1ful.com/tools/ones/actions/workflows/release.yml/badge.svg)](https://forgejo.cloud1ful.com/tools/ones/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-ONES 的非官方第三方集成工具，提供：
+Unofficial third-party ONES integration providing:
 
-- HTTP JSON API 和 OpenAPI 文档
-- MCP Streamable HTTP 和 stdio
-- 命令行访问工作台、Issue、附件、代码关联、状态流转和统一工时
-- 旧版 `/project/api/project/team/:teamUUID` REST 端点（字段、状态流转、任务 info）和旧版 `items/graphql` 端点的兼容入口
-- 发布适用于 Linux、macOS、Windows 的预编译二进制文件
+- An HTTP JSON API with a generated OpenAPI document
+- MCP over Streamable HTTP and stdio
+- A CLI for workbench views, issues, attachments, code links, status transitions, and work hours
+- Compatibility entry points for the legacy `/project/api/project/team/:teamUUID` REST endpoints (fields, status transitions, task info) and the legacy `items/graphql` endpoint
+- Prebuilt binaries for Linux, macOS, and Windows
 
-项目独立开发，与 ONES 官方无隶属、赞助或授权关系。
+Independently developed; not affiliated with, sponsored, authorized, or endorsed by ONES or its owners.
 
-## 部署
+## Cargo features
 
-### 使用发布版二进制
+Adapters are feature-gated, so the library core never pulls in a server, CLI, or schema dependency:
 
-从 [Releases](https://forgejo.cloud1ful.com/tools/ones/releases) 下载对应平台的二进制文件和 `.sha256` 校验文件，然后配置：
+| Feature | Enables | Direct dependencies added |
+| --- | --- | --- |
+| `http` | axum HTTP JSON API and OpenAPI document | `axum`, `utoipa`, `utoipa-axum` |
+| `mcp` | MCP tools and resources, including the stdio transport | `rmcp`, `schemars` |
+| `mcp-http` | MCP Streamable HTTP transport (implies `mcp`) | rmcp's HTTP server features |
+| `cli` | The `ones` binary (implies `http` and `mcp-http`) | `clap`, `tracing-subscriber` |
+| `default` | `http` + `mcp` + `cli` | — |
+
+Consume only the business logic:
+
+```toml
+ones-toolkit = { version = "0.2", default-features = false }
+```
+
+With `default-features = false`, `axum`, `rmcp`, `utoipa`, `utoipa-axum`, `clap`, `tracing-subscriber`, and `schemars` stay disabled and the `ones` binary is not built, while `OnesService`, `AppConfig`, `AppError`, and every shared DTO remain available. The `http`, `hyper`, and `tokio` crates that `reqwest` brings in remain legitimate transitive dependencies.
+
+Select only what you need:
+
+| Dependency | Behaviour |
+| --- | --- |
+| `default-features = false` | Core business layer only |
+| `features = ["http"]` | HTTP API without any MCP transport |
+| `features = ["mcp"]` | MCP tools over stdio, without the HTTP server |
+| `features = ["mcp-http"]` | MCP Streamable HTTP transport |
+| default features | Full HTTP, MCP, and CLI surface |
+
+## Deploy
+
+### Released binary
+
+Download the binary and its `.sha256` checksum for your platform from [Releases](https://forgejo.cloud1ful.com/tools/ones/releases), then configure:
 
 ```bash
 export ONES_BASE_URL="https://ones.example.test"
 export ONES_TEAM_UUID="team-demo-001"
 ```
 
-启动 HTTP API 和 MCP 服务：
+Start the HTTP API and MCP server:
 
 ```bash
 chmod +x ones-linux-amd64
 ./ones-linux-amd64 serve --addr 0.0.0.0:3000
 ```
 
-默认地址为 `http://127.0.0.1:3000`，MCP 地址为 `/mcp`，OpenAPI 文档地址为 `/openapi.json`。可通过 `LISTEN_ADDR` 和 `MCP_PATH` 修改默认值。
+The default address is `http://127.0.0.1:3000`, MCP is served at `/mcp`, and the OpenAPI document at `/openapi.json`. Override the defaults with `LISTEN_ADDR` and `MCP_PATH`.
 
-HTTP 请求使用以下请求头进行 ONES 认证：
+HTTP requests authenticate with these headers:
 
 ```text
 x-ones-email: user@example.test
 x-ones-password: your-password
 ```
 
-## 工时
+### From source
 
-工时接口统一使用小时小数，Issue 可用 UUID 或显示 ID 标识。Issue 明细查询的人员、起止日期可省略；跨 Issue 报表必须提供 `from` 和 `to`。
+Rust 1.88 or newer is required (the floor declared by `rust-version` and set by
+the dependency set):
 
-HTTP 入口：
+```bash
+git clone https://forgejo.cloud1ful.com/tools/ones.git
+cd ones
+cargo run --release -- serve --addr 0.0.0.0:3000
+```
+
+### stdio MCP
+
+The stdio MCP server also needs ONES account credentials:
+
+```bash
+export ONES_EMAIL="user@example.test"
+export ONES_PASSWORD="your-password"
+cargo run --release -- stdio
+```
+
+### Status transition input
+
+`issue transition-preview` and `issue transition` read JSON from `--input PATH|-`. `field_values[].value` keeps its JSON shape and accepts a string, a single object, or an array of objects:
+
+```json
+{
+  "transition_uuid": "transition-demo-001",
+  "field_values": [
+    {
+      "field_uuid": "field057",
+      "value": [
+        {"uuid": "comment-demo-001", "content": "regression note"}
+      ]
+    }
+  ]
+}
+```
+
+## Work hours
+
+Work-hour endpoints use fractional hours and accept an issue UUID or display ID. Owner and date bounds on the issue-detail query are optional; the cross-issue report requires `from` and `to`.
+
+HTTP entry points:
 
 ```text
 GET    /api/work-hours/issue
@@ -54,9 +125,9 @@ PATCH  /api/work-hours/remaining
 DELETE /api/work-hours
 ```
 
-MCP 工具：`list_issue_work_hours`、`query_work_hour_report`、`add_work_hour`、`update_remaining_hours`、`delete_work_hour`。
+MCP tools: `list_issue_work_hours`, `query_work_hour_report`, `add_work_hour`, `update_remaining_hours`, `delete_work_hour`.
 
-CLI 示例：
+CLI examples:
 
 ```bash
 ones work-hour list --issue-uuid issue-demo-001
@@ -66,72 +137,34 @@ ones work-hour update-remaining --issue-uuid issue-demo-001 --remaining-hours 0
 ones work-hour delete --display-id DEMO-1234 manhour-demo-recorded
 ```
 
-新增和修改默认使用当前登录用户。删除必须传入目标 Issue 和精确的工时记录 `key`；返回结果中的人员姓名默认脱敏。
+Creates and updates default to the signed-in user. A delete must name the target issue and the exact work-hour entry `key`; person names in responses are redacted by default.
 
-## 旧版接口
+## Legacy endpoints
 
-在用户环境无法使用新版 Open API v2 时，下列旧版公开接口可用：
+When the newer Open API v2 is unavailable in your environment, these legacy public endpoints work:
 
-- `GET /api/issues/{issue_uuid}/task-info`：读取旧版 `task/{uuidOrNumber}/info`，返回任务的基本字段（不含自定义字段）。
-- `GET /api/issues/{issue_uuid}/transitions`：读取旧版 `task/{uuid}/transitions`，列出可用的状态流转。
-- 字段定义、旧版 `items/graphql` GraphQL 等能力由现有统一接口复用。
+- `GET /api/issues/{issue_uuid}/task-info` reads legacy `task/{uuidOrNumber}/info` and returns the basic task fields (custom fields excluded).
+- `GET /api/issues/{issue_uuid}/transitions` reads legacy `task/{uuid}/transitions` and lists the available status transitions.
+- Field definitions and the legacy `items/graphql` GraphQL surface are reused from the unified endpoints.
 
-MCP 工具对应：`get_issue_task_info`、`list_issue_transitions`。CLI 对应：
+Matching MCP tools are `get_issue_task_info` and `list_issue_transitions`. Matching CLI commands:
 
 ```bash
 ones issue task-info issue-demo-001
 ones issue transitions issue-demo-001
 ```
 
-字段读取与状态流转在公开端点不可用时会自动回退到内部兼容端点；其他状态码（401、403、400、429、5xx、网络错误）按原状态上抛，不触发回退。
+Field reads and status transitions automatically fall back to the internal compatibility endpoints when the public ones are unavailable. Other statuses (401, 403, 400, 429, 5xx, network errors) propagate unchanged and never trigger a fallback.
 
-### 从源码运行
+## Release
 
-需要 Rust stable：
-
-```bash
-git clone https://forgejo.cloud1ful.com/tools/ones.git
-cd ones
-cargo run --release -- serve --addr 0.0.0.0:3000
-```
-
-### 配置 stdio MCP
-
-stdio MCP 还需要 ONES 账号密码：
-
-```bash
-export ONES_EMAIL="user@example.test"
-export ONES_PASSWORD="your-password"
-cargo run --release -- stdio
-```
-
-### 状态流转输入
-
-`issue transition-preview` 和 `issue transition` 通过 `--input PATH|-` 读取 JSON。`field_values[].value` 会保留 JSON 结构，支持字符串、单个对象和对象数组，例如：
-
-```json
-{
-  "transition_uuid": "transition-demo-001",
-  "field_values": [
-    {
-      "field_uuid": "field057",
-      "value": [
-        {"uuid": "comment-demo-001", "content": "FAT 回归评论"}
-      ]
-    }
-  ]
-}
-```
-
-## 发布
-
-推送匹配 `v*` 的标签会触发 Forgejo Actions，自动运行测试并发布多平台二进制文件：
+Pushing a `v*` tag triggers Forgejo Actions, which runs the feature matrix and tests, then publishes prebuilt binaries:
 
 ```bash
 git tag vX.Y.Z
 git push origin vX.Y.Z
 ```
 
-也可以在 Actions 页面手动执行 `workflow_dispatch`，但需要填写一个已存在的标签。
+You can also run `workflow_dispatch` manually from the Actions page, but you must supply an existing tag.
 
 MIT License

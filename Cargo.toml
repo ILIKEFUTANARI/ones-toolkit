@@ -2,6 +2,7 @@
 name = "ones-toolkit"
 version = "0.2.4"
 edition = "2024"
+rust-version = "1.88"
 description = "Unofficial third-party HTTP, MCP, and CLI toolkit for ONES issue management"
 license = "MIT"
 readme = "README.md"
@@ -17,23 +18,32 @@ path = "src/lib.rs"
 [[bin]]
 name = "ones"
 path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = ["http", "mcp", "cli"]
+http = ["dep:axum", "dep:utoipa", "dep:utoipa-axum", "tokio/net", "tokio/rt-multi-thread", "tokio/signal"]
+mcp = ["dep:rmcp", "dep:schemars", "rmcp/server", "rmcp/macros", "rmcp/schemars", "rmcp/transport-io"]
+mcp-http = ["mcp", "rmcp/transport-streamable-http-server", "rmcp/transport-streamable-http-server-session"]
+cli = ["dep:clap", "dep:tracing-subscriber", "http", "mcp-http"]
 
 [dependencies]
-axum = "0.8.9"
-clap = { version = "4.6.1", features = ["derive", "env"] }
-http = "1.4.2"
-reqwest = { version = "0.13.4", default-features = false, features = [ "json", "rustls" ] }
-rmcp = { version = "2.2.0", features = ["server", "macros", "schemars", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session"] }
-schemars = "1.2.1"
-serde = { version = "1.0.228", features = [ "derive" ] }
-serde_json = "1.0.150"
-thiserror = "2.0.18"
-tokio = { version = "1.52.3", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+axum = { version = "0.8.9", optional = true }
+clap = { version = "4.6.7", features = ["derive", "env"], optional = true }
+http = "1.5.0"
+reqwest = { version = "0.13.5", default-features = false, features = [ "json", "rustls" ] }
+rmcp = { version = "3.5.1", optional = true }
+schemars = { version = "1.2.2", optional = true }
+serde = { version = "1.0.229", features = [ "derive" ] }
+serde_json = "1.0.154"
+thiserror = "2.0.21"
+tokio = { version = "1.53.2", features = ["macros", "sync", "time"] }
 tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.23", features = [ "env-filter", "fmt" ] }
-utoipa = { version = "5.4.0", features = [ "axum_extras" ] }
-utoipa-axum = "0.2.0"
+tracing-subscriber = { version = "0.3.23", features = [ "env-filter", "fmt" ], optional = true }
+utoipa = { version = "6.0.0", features = [ "axum_extras" ], optional = true }
+utoipa-axum = { version = "0.3.0", optional = true }
 
 [dev-dependencies]
-rmcp = { version = "2.2.0", features = ["client", "server", "macros", "schemars", "transport-io", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "transport-streamable-http-server", "transport-streamable-http-server-session"] }
-tokio = { version = "1.52.3", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }
+axum = "0.8.9"
+rmcp = { version = "3.5.1", features = ["client", "server", "macros", "schemars", "transport-io", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "transport-streamable-http-server", "transport-streamable-http-server-session"] }
+tokio = { version = "1.53.2", features = ["macros", "net", "rt-multi-thread", "sync", "time"] }

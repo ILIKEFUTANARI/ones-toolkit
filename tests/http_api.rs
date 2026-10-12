@@ -1,3 +1,5 @@
+#![cfg(all(feature = "http", feature = "mcp-http"))]
+
 mod support;
 
 use reqwest::{Client, StatusCode};

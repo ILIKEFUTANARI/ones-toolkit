@@ -1,6 +1,4 @@
-use rmcp::schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AuthContext {
@@ -8,13 +6,17 @@ pub struct AuthContext {
     pub password: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkbenchViewSummary {
     pub uuid: String,
     pub name: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkbenchViewDetail {
     pub uuid: String,
     pub name: String,
@@ -30,7 +32,9 @@ pub(crate) struct SortField {
     pub order: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct WorkbenchIssueGroup {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
@@ -40,7 +44,9 @@ pub struct WorkbenchIssueGroup {
     pub hierarchy_count: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct PageInfo {
     pub has_next_page: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,14 +61,18 @@ pub(crate) struct IssueLookupResult {
     pub display_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct StatusSummary {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct IssueListItem {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -85,13 +95,17 @@ pub struct IssueListItem {
     pub downstream_task_done_count: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct DisplayField {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct RelatedWikiPage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -99,13 +113,17 @@ pub struct RelatedWikiPage {
     pub error_message: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct RelatedCase {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct IssueDetail {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -146,7 +164,9 @@ pub struct IssueDetail {
     pub related_cases: Option<Vec<RelatedCase>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct IssueActivityEntry {
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub entry_type: Option<String>,
@@ -166,7 +186,9 @@ pub struct IssueActivityEntry {
     pub new_value: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct IssueActivityPage {
     pub activity: Vec<IssueActivityEntry>,
     pub page_info: PageInfo,
@@ -177,7 +199,9 @@ pub struct IssueActivityPage {
 /// unknown fields are ignored via `serde(default)`. Custom fields and field
 /// values are not part of this shape — callers that need them should use the
 /// GraphQL `items/graphql` path.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "http", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "mcp", derive(schemars::JsonSchema))]
 pub struct LegacyTaskInfo {
     pub uuid: String,
     #[serde(skip_serializing_if = "Option::is_none")]

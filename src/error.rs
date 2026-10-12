@@ -1,8 +1,10 @@
+#[cfg(feature = "http")]
 use axum::{
     Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+#[cfg(feature = "http")]
 use serde::Serialize;
 use thiserror::Error;
 
@@ -57,6 +59,7 @@ impl AppError {
         }
     }
 
+    #[cfg(feature = "http")]
     pub fn status_code(&self) -> StatusCode {
         match self {
             Self::MissingConfig(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -71,11 +74,13 @@ impl AppError {
     }
 }
 
+#[cfg(feature = "http")]
 #[derive(Debug, Serialize)]
 struct ErrorBody<'a> {
     error: &'a str,
 }
 
+#[cfg(feature = "http")]
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let status = self.status_code();

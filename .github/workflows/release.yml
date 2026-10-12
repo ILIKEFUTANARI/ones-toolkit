@@ -19,6 +19,72 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  features:
+    name: features (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: core
+            args: --no-default-features
+            check_args: --no-default-features --lib
+          - name: http
+            args: --no-default-features --features http
+            check_args: --no-default-features --features http
+          - name: mcp
+            args: --no-default-features --features mcp
+            check_args: --no-default-features --features mcp
+          - name: http+mcp
+            args: --no-default-features --features http,mcp
+            check_args: --no-default-features --features http,mcp
+          - name: mcp-http
+            args: --no-default-features --features mcp-http
+            check_args: --no-default-features --features mcp-http
+          - name: all
+            args: --all-features
+            check_args: --all-features
+    steps:
+      - name: Resolve release ref
+        id: release_ref
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=refs/tags/${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${GITHUB_REF}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release_ref.outputs.ref }}
+          persist-credentials: false
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check ${{ matrix.name }}
+        run: cargo check ${{ matrix.check_args }}
+
+      - name: Test ${{ matrix.name }}
+        run: cargo test ${{ matrix.args }}
+
+      - name: Assert core stays adapter free
+        if: matrix.name == 'core'
+        shell: bash
+        run: |
+          if cargo tree --no-default-features -e normal --depth 1 \
+            | grep -E '(axum|rmcp|utoipa|utoipa-axum|clap|tracing-subscriber|schemars) v[0-9]'; then
+            echo "::error::the core-only build must not depend on HTTP, MCP, or CLI adapters"
+            exit 1
+          fi
+
   verify:
     runs-on: ubuntu-latest
     permissions:
@@ -48,11 +114,14 @@ jobs:
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Check formatting
+        run: cargo fmt --check
+
       - name: Run tests
         run: cargo test
 
   build:
-    needs: verify
+    needs: [features, verify]
     strategy:
       fail-fast: false
       matrix:

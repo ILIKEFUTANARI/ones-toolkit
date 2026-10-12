@@ -1,3 +1,5 @@
+#[cfg(feature = "mcp-http")]
+use crate::mcp::{McpAuthMode, build_mcp_service};
 use crate::{
     api::{
         ActivityResponse, AttachmentsResponse, CodeLinksResponse, CreateBranchResponse,
@@ -5,10 +7,8 @@ use crate::{
         WorkbenchIssuePage,
     },
     code::CreateBranchInput,
-    error::{AppError, AppResult},
+    error::AppResult,
     http_work_hours, http_workflow,
-    mcp::{McpAuthMode, build_mcp_service},
-    models::AuthContext,
     ones::service::OnesService,
 };
 use axum::{
@@ -21,18 +21,32 @@ use serde::Deserialize;
 use std::sync::Arc;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
+pub use crate::auth::auth_from_headers;
+
 #[derive(Clone)]
 pub struct HttpState {
     pub service: Arc<OnesService>,
     pub openapi: Arc<serde_json::Value>,
 }
 
+/// Build the HTTP API router, optionally nesting the MCP Streamable HTTP
+/// service. Without the `mcp-http` feature the HTTP API stands alone.
+#[cfg(feature = "mcp-http")]
 pub fn build_http_app(
     service: Arc<OnesService>,
     mcp_auth_mode: McpAuthMode,
     mcp_path: String,
 ) -> Router {
     let mcp_service = build_mcp_service(service.clone(), mcp_auth_mode);
+    base_app(service).nest_service(&mcp_path, mcp_service)
+}
+
+#[cfg(not(feature = "mcp-http"))]
+pub fn build_http_app(service: Arc<OnesService>) -> Router {
+    base_app(service)
+}
+
+fn base_app(service: Arc<OnesService>) -> Router {
     let (router, mut document) = build_api_router().split_for_parts();
     crate::openapi::finalize(&mut document);
     let state = HttpState {
@@ -43,7 +57,6 @@ pub fn build_http_app(
     router
         .route("/openapi.json", get(openapi))
         .with_state(state)
-        .nest_service(&mcp_path, mcp_service)
 }
 
 pub(crate) fn build_api_router() -> OpenApiRouter<HttpState> {
@@ -344,21 +357,4 @@ struct ActivityQuery {
     cursor: Option<String>,
     limit: Option<u32>,
     redact: Option<bool>,
-}
-
-pub fn auth_from_headers(headers: &HeaderMap) -> AppResult<AuthContext> {
-    let email = header_value(headers, "x-ones-email")
-        .or_else(|| header_value(headers, "x-user-email"))
-        .ok_or(AppError::MissingAuth)?;
-    let password = header_value(headers, "x-ones-password")
-        .or_else(|| header_value(headers, "x-user-password"))
-        .ok_or(AppError::MissingAuth)?;
-    Ok(AuthContext { email, password })
-}
-
-fn header_value(headers: &HeaderMap, name: &str) -> Option<String> {
-    headers
-        .get(name)
-        .and_then(|value| value.to_str().ok())
-        .map(ToString::to_string)
 }

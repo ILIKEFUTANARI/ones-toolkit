@@ -4,9 +4,9 @@ use crate::{
         GroupsResponse, IssueResponse, LegacyTaskInfoResponse, ViewResponse, ViewsResponse,
         WorkbenchIssuePage,
     },
+    auth::auth_from_headers,
     code::CreateBranchInput,
     error::{AppError, AppResult},
-    http_api::auth_from_headers,
     models::AuthContext,
     ones::service::OnesService,
     work_hours::{
@@ -23,10 +23,10 @@ use http::request::Parts;
 use rmcp::{
     Json,
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
-    schemars::JsonSchema,
     service::RequestContext,
     tool_router,
 };
+use schemars::JsonSchema;
 use serde::Deserialize;
 use std::sync::Arc;
 
@@ -67,6 +67,9 @@ impl OnesMcpServer {
     }
 }
 
+/// Build the MCP Streamable HTTP service. Requires the `mcp-http` feature;
+/// the `mcp` feature alone still serves the stdio transport.
+#[cfg(feature = "mcp-http")]
 pub fn build_mcp_service(
     service: Arc<OnesService>,
     auth_mode: McpAuthMode,
