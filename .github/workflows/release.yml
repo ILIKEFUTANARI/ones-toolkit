@@ -21,7 +21,7 @@ concurrency:
 jobs:
   features:
     name: features (${{ matrix.name }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     strategy:
@@ -86,7 +86,7 @@ jobs:
           fi
 
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
     steps:
@@ -126,15 +126,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target_name: linux-amd64
             artifact_name: ones-linux-amd64
             binary_path: target/release/ones
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-22.04-arm
             target_name: linux-arm64
             artifact_name: ones-linux-arm64
             binary_path: target/release/ones
-          - os: macos-26
+          - os: macos-latest
             target_name: macos-arm64
             artifact_name: ones-macos-arm64
             binary_path: target/release/ones
@@ -200,7 +200,7 @@ jobs:
   release-tag:
     if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     permissions:
       contents: write
     steps:
