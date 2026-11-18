@@ -2,7 +2,6 @@
 
 [English](README.md) | 简体中文
 
-[![Release](https://forgejo.cloud1ful.com/tools/ones/actions/workflows/release.yml/badge.svg)](https://forgejo.cloud1ful.com/tools/ones/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 ONES 的非官方第三方集成工具，提供：
@@ -144,16 +143,5 @@ cargo run --release -- stdio
   ]
 }
 ```
-
-## 发布
-
-推送匹配 `v*` 的标签会触发 Forgejo Actions，自动运行测试并发布多平台二进制文件：
-
-```bash
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-
-也可以在 Actions 页面手动执行 `workflow_dispatch`，但需要填写一个已存在的标签。
 
 MIT License
