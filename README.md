@@ -2,7 +2,6 @@
 
 English | [简体中文](README.zh-CN.md)
 
-[![Release](https://forgejo.cloud1ful.com/tools/ones/actions/workflows/release.yml/badge.svg)](https://forgejo.cloud1ful.com/tools/ones/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Unofficial third-party ONES integration providing:
@@ -155,16 +154,5 @@ ones issue transitions issue-demo-001
 ```
 
 Field reads and status transitions automatically fall back to the internal compatibility endpoints when the public ones are unavailable. Other statuses (401, 403, 400, 429, 5xx, network errors) propagate unchanged and never trigger a fallback.
-
-## Release
-
-Pushing a `v*` tag triggers Forgejo Actions, which runs the feature matrix and tests, then publishes prebuilt binaries:
-
-```bash
-git tag vX.Y.Z
-git push origin vX.Y.Z
-```
-
-You can also run `workflow_dispatch` manually from the Actions page, but you must supply an existing tag.
 
 MIT License
